@@ -1,4 +1,4 @@
-const panzoom = (selector, options = {}) => {
+export const panzoom = (selector, options = {}) => {
   // Default Parameters
   const pan = options.pan !== false;
   const zoom = options.zoom !== false; // Default: true

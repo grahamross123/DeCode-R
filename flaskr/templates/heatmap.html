@@ -1,31 +1,28 @@
 {% extends 'base.html' %} {% block header %}
 <meta id="img-path" data-name="{{ slide_image }}" />
 {% endblock %} {% block content %}
-<script src="{{ url_for('static', filename='heatmap.js') }}"></script>
-<script src="{{ url_for('static', filename='panzoom.js') }}"></script>
-<script type="text/javascript">
+<script type="module">
+  import {
+    listenFormChange,
+    addGraph,
+    deleteGraph,
+  } from "{{ url_for('static', filename='heatmap.js') }}";
   var graphIdx = 0;
-  $(document).ready(() => {
-    panzoom(".image", {
-      bound: "outer",
-    });
-  });
   const predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
   const mutations = Object.keys(predictions);
   listenFormChange(predictions);
+  document.querySelector("#add-graph-button").addEventListener("click", () => {
+    addGraph($("#img-path").data().name, mutations, (graphIdx += 1));
+  });
+  window.deleteGraph = deleteGraph;
+  addGraph($("#img-path").data().name, mutations, (graphIdx += 1));
 </script>
 
 <a href="/">Return to menu</a>
 <div class="row">
-  <script>
-    addGraph($("#img-path").data().name, mutations, (graphIdx += 1));
-  </script>
+  <script></script>
 </div>
 <div style="display: block">
-  <button
-    onclick="addGraph($('#img-path').data().name, mutations, graphIdx+=1)"
-  >
-    Add graph
-  </button>
+  <button id="add-graph-button">Add graph</button>
 </div>
 {% endblock %}

@@ -1,15 +1,4 @@
-// Create a random array of predictions for testing
-function createRandomPredictions(width, height) {
-  var result = [];
-  for (var i = 0; i < width; i++) {
-    result[i] = [];
-    for (var j = 0; j < height; j++) {
-      result[i][j] = Math.random();
-    }
-  }
-  result[0][8] = null;
-  return result;
-}
+import { panzoom } from "./panzoom.js";
 
 // Function to use 2D prediction array to populate the image with coloured divs
 function createOverlay(predictions, graphId) {
@@ -57,7 +46,7 @@ function removeOverlay(graphId) {
 }
 
 // Listen for a change in the radio form and update the graph overlay accordingly
-function listenFormChange(predictionsDict) {
+export function listenFormChange(predictionsDict) {
   $(document).ready(() => {
     $(document).on("change", (event) => {
       let value = event.target.value;
@@ -72,10 +61,10 @@ function listenFormChange(predictionsDict) {
   });
 }
 
-function addGraph(imgPath, mutations, idx) {
-  radioForm = "";
+export function addGraph(imgPath, mutations, idx) {
+  let radioForm = "";
   mutations.forEach((mutation, idx) => {
-    radioFormItem = `
+    let radioFormItem = `
     <input type="radio" id="${mutation}" name="overlay" value="${mutation}"
     <label for="${mutation}">${mutation}</label><br />
     `;
@@ -84,7 +73,6 @@ function addGraph(imgPath, mutations, idx) {
   let graphHTML =
     `
     <div class="col" id=${"graph" + idx}>
-      <div class="padding">
         <div class="image-box float-l">
           <img
             class="image"
@@ -105,13 +93,11 @@ function addGraph(imgPath, mutations, idx) {
     </div>
   `;
   $(".row").append(graphHTML);
+  panzoom(".image", {
+    bound: "outer",
+  });
 }
 
-function deleteGraph(elem) {
+export function deleteGraph(elem) {
   $(elem).closest(".col").remove();
 }
-
-// $("document").ready(() => {
-//   let predictions = createRandomPredictions(10, 20);
-//   createOverlay(predictions);
-// });
