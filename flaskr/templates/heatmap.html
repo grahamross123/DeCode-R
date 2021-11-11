@@ -2,8 +2,14 @@
 <meta id="img-path" data-name="{{ slide_image }}" />
 {% endblock %} {% block content %}
 <script src="{{ url_for('static', filename='heatmap.js') }}"></script>
+<script src="{{ url_for('static', filename='panzoom.js') }}"></script>
 <script type="text/javascript">
   var graphIdx = 0;
+  $(document).ready(() => {
+    panzoom(".image", {
+      bound: "outer",
+    });
+  });
   const predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
   const mutations = Object.keys(predictions);
   listenFormChange(predictions);

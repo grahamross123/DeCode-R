@@ -13,8 +13,10 @@
 }
 
 .image-box {
-  width: 75%;
   position: relative;
+  width: 75%;
+  height: 500px;
+  overflow: hidden;
 }
 
 .float-l {
@@ -40,6 +42,6 @@
 .predictions {
   position: absolute;
   top: 0px;
-  height: calc(100% - 4px);
-  width: 100%;
+  /* height: calc(100% - 4px);
+  width: 100%; */
 }
