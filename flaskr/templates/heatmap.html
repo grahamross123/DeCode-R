@@ -1,0 +1,25 @@
+{% extends 'base.html' %} {% block header %}
+<meta id="img-path" data-name="{{ slide_image }}" />
+{% endblock %} {% block content %}
+<script src="{{ url_for('static', filename='heatmap.js') }}"></script>
+<script type="text/javascript">
+  var graphIdx = 0;
+  const predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
+  const mutations = Object.keys(predictions);
+  listenFormChange(predictions);
+</script>
+
+<a href="/">Return to menu</a>
+<div class="row">
+  <script>
+    addGraph($("#img-path").data().name, mutations, (graphIdx += 1));
+  </script>
+</div>
+<div style="display: block">
+  <button
+    onclick="addGraph($('#img-path').data().name, mutations, graphIdx+=1)"
+  >
+    Add graph
+  </button>
+</div>
+{% endblock %}

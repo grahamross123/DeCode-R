@@ -1,0 +1,45 @@
+.heading {
+}
+
+.row {
+  width: 100%;
+  height: 100%;
+  float: left;
+}
+
+.col {
+  width: 50%;
+  float: left;
+}
+
+.image-box {
+  width: 75%;
+  position: relative;
+}
+
+.float-l {
+  float: left;
+}
+
+.float-r {
+  float: right;
+}
+
+.image {
+  width: 100%;
+}
+
+.padding {
+  padding: 10px;
+}
+
+.tile {
+  float: left;
+}
+
+.predictions {
+  position: absolute;
+  top: 0px;
+  height: calc(100% - 4px);
+  width: 100%;
+}
