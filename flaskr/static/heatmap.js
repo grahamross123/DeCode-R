@@ -74,12 +74,14 @@ export function addGraph(imgPath, mutations, idx) {
     `
     <div class="col" id=${"graph" + idx}>
         <div class="image-box float-l">
-          <img
-            class="image"
-            src="data:image/jpeg;base64,${imgPath}"
-            alt="Scan"
-          />
-          <div class="predictions"></div>
+          <div class="image-interactive" id=${"image-interactive" + idx}>
+            <img
+              class="image"
+              src="data:image/jpeg;base64,${imgPath}"
+              alt="Scan"
+            >
+            <div class="predictions"></div>
+          </div>
         </div>
         <form id=${"form" + idx}>
           <input type="radio" id="None" name="overlay" value="None" checked />
@@ -93,8 +95,11 @@ export function addGraph(imgPath, mutations, idx) {
     </div>
   `;
   $(".row").append(graphHTML);
-  panzoom(".image", {
+  panzoom("#image-interactive" + idx, {
     bound: "outer",
+  });
+  $(document).ready(() => {
+    $(".image-box").css("height", $(".image-interactive").height());
   });
 }
 
