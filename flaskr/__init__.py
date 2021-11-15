@@ -28,4 +28,8 @@ def create_app(test_config=None):
     app.register_blueprint(heatmap.bp)
     app.register_blueprint(index.bp)
 
+    # Add database
+    from . import db
+    db.init_app(app)
+
     return app

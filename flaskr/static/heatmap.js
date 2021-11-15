@@ -1,10 +1,10 @@
 import { panzoom } from "./panzoom.js";
 
 // Create an array of empty divs corresponding to the size of the predictions array
-function createEmptyOverlay(predictions, graphId) {
+function createEmptyOverlay(predictions) {
   const heightPct = 100 / predictions.length;
   const widthPct = 100 / predictions[0].length;
-  let predDiv = $("#" + graphId).find(".predictions");
+  let predDiv = $("#image-interactive").find(".predictions");
   for (let i = 0; i < predictions.length; i++) {
     let row = document.createElement("span");
     row.style.display = "block";
@@ -23,12 +23,11 @@ function createEmptyOverlay(predictions, graphId) {
 }
 
 // Colours the prediction divs according to the prediction array
-function createOverlay(predictions, graphId, empty) {
+function createOverlay(predictions, empty) {
   for (let i = 0; i < predictions.length; i++) {
     for (let j = 0; j < predictions[0].length; j++) {
-      let cell = $("#" + graphId)
-        .find(".predictions")
-        .children()[i].children[j];
+      let cell = $("#image-interactive").find(".predictions").children()[i]
+        .children[j];
       if (!empty) {
         if (predictions[i][j] === "nan") {
           cell.style.backgroundColor = "black";
@@ -58,13 +57,12 @@ function listenFormChange(predictionsDict) {
   $(document).ready(() => {
     $("#heatmap-form").on("change", (event) => {
       let value = event.target.value;
-      let graphId = $(event.target).closest(".col")[0].id;
-      // Don't add an overlay if "none" is selected
+      // Add empty overlay if "none" is selected
       if (value === "None") {
-        createOverlay(predictionsDict["BAP1"], graphId, true);
+        createOverlay(predictionsDict["BAP1"], true);
         return;
       }
-      createOverlay(predictionsDict[value], graphId, false);
+      createOverlay(predictionsDict[value], false);
     });
   });
 }
@@ -101,7 +99,7 @@ function addClickCoords(predictionsDict) {
         predictionsDict["BAP1"].length
       );
       highlightDiv(coords[1], coords[0]);
-      let selectedFilter = $("input:checked", "#heatmap-form").val();
+      let selectedFilter = $("#heatmap-form").find(":selected").text();
       if (selectedFilter === "None") return;
       let current = predictionsDict[selectedFilter][coords[1]][coords[0]];
       $("#current").text("Current: " + Math.round(current * 1000) / 1000);
