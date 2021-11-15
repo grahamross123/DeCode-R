@@ -1,12 +1,10 @@
 import { panzoom } from "./panzoom.js";
 
-// Function to use 2D prediction array to populate the image with coloured divs
-function createOverlay(predictions, graphId) {
+// Create an array of empty divs corresponding to the size of the predictions array
+function createEmptyOverlay(predictions, graphId) {
   const heightPct = 100 / predictions.length;
   const widthPct = 100 / predictions[0].length;
   let predDiv = $("#" + graphId).find(".predictions");
-  // Delete the overlay existing overlay
-  removeOverlay(graphId);
   for (let i = 0; i < predictions.length; i++) {
     let row = document.createElement("span");
     row.style.display = "block";
@@ -15,11 +13,7 @@ function createOverlay(predictions, graphId) {
     for (let j = 0; j < predictions[i].length; j++) {
       let pred = document.createElement("div");
       pred.classList.add("tile");
-      if (predictions[i][j] === "nan") {
-        pred.style.backgroundColor = "black";
-      } else {
-        pred.style.backgroundColor = prob2rgba(predictions[i][j], 0.5);
-      }
+      pred.id = pad(i, 4) + pad(j, 4); // Add coordinates to the id
       pred.style.width = widthPct + "%";
       pred.style.height = "100%";
       row.appendChild(pred);
@@ -28,81 +22,101 @@ function createOverlay(predictions, graphId) {
   }
 }
 
+// Colours the prediction divs according to the prediction array
+function createOverlay(predictions, graphId, empty) {
+  for (let i = 0; i < predictions.length; i++) {
+    for (let j = 0; j < predictions[0].length; j++) {
+      let cell = $("#" + graphId)
+        .find(".predictions")
+        .children()[i].children[j];
+      if (!empty) {
+        if (predictions[i][j] === "nan") {
+          cell.style.backgroundColor = "black";
+        } else {
+          cell.style.backgroundColor = prob2rgba(predictions[i][j], 0.5);
+        }
+      } else {
+        cell.style.backgroundColor = "transparent";
+      }
+    }
+  }
+}
+
 function prob2rgba(prob, opacity) {
   if (prob < 0.5) {
-    let colour = (0.5 - prob) * 255;
+    let colour = prob * 2 * 255;
     return `rgb(${colour}, ${colour}, 255, ${opacity}`;
   }
-  if (prob >= -0.5) {
-    let colour = (0.5 - prob) * 255;
+  if (prob >= 0.5) {
+    let colour = (1 - prob) * 2 * 255;
     return `rgba(255, ${colour}, ${colour}, ${opacity})`;
   }
 }
 
-function removeOverlay(graphId) {
-  $("#" + graphId)
-    .find(".predictions")
-    .empty();
-}
-
 // Listen for a change in the radio form and update the graph overlay accordingly
-export function listenFormChange(predictionsDict) {
+function listenFormChange(predictionsDict) {
   $(document).ready(() => {
-    $(document).on("change", (event) => {
+    $("#heatmap-form").on("change", (event) => {
       let value = event.target.value;
       let graphId = $(event.target).closest(".col")[0].id;
       // Don't add an overlay if "none" is selected
       if (value === "None") {
-        removeOverlay(graphId);
+        createOverlay(predictionsDict["BAP1"], graphId, true);
         return;
       }
-      createOverlay(predictionsDict[value], graphId);
+      createOverlay(predictionsDict[value], graphId, false);
     });
   });
 }
 
-export function addGraph(imgPath, mutations, idx) {
-  let radioForm = "";
-  mutations.forEach((mutation, idx) => {
-    let radioFormItem = `
-    <input type="radio" id="${mutation}" name="overlay" value="${mutation}"
-    <label for="${mutation}">${mutation}</label><br />
-    `;
-    radioForm += radioFormItem;
-  });
-  let graphHTML =
-    `
-    <div class="col" id=${"graph" + idx}>
-        <div class="image-box float-l">
-          <div class="image-interactive" id=${"image-interactive" + idx}>
-            <img
-              class="image"
-              src="data:image/jpeg;base64,${imgPath}"
-              alt="Scan"
-            >
-            <div class="predictions"></div>
-          </div>
-        </div>
-        <form id=${"form" + idx}>
-          <input type="radio" id="None" name="overlay" value="None" checked />
-          <label for="none">None</label><br />
-          ` +
-    radioForm +
-    `
-        </form>
-        <button onclick="deleteGraph(this)">Remove</button>
-      </div>
-    </div>
-  `;
-  $(".row").append(graphHTML);
-  panzoom("#image-interactive" + idx, {
-    bound: "outer",
-  });
-  $(document).ready(() => {
-    $(".image-box").css("height", $(".image-interactive").height());
+function pad(num, size) {
+  num = num.toString();
+  while (num.length < size) num = "0" + num;
+  return num;
+}
+
+function pixel2coord(x, y, width, height, ncols, nrows) {
+  let xcoord = (x / width) * ncols;
+  let ycoord = (y / height) * nrows;
+  return [Math.floor(xcoord), Math.floor(ycoord)];
+}
+
+function highlightDiv(x, y) {
+  let divId = pad(x, 4) + pad(y, 4);
+  // Remove original highlight
+  $(".highlight").removeClass("highlight");
+  // Add new highlight
+  $("#" + divId).addClass("highlight");
+}
+
+function addClickCoords(predictionsDict) {
+  $(document).ready(function () {
+    $("#image-interactive").dblclick(function (event) {
+      let coords = pixel2coord(
+        event.offsetX,
+        event.offsetY,
+        this.offsetWidth,
+        this.offsetHeight,
+        predictionsDict["BAP1"][0].length, // TODO: Add support for multiple rows / cols for different mutations
+        predictionsDict["BAP1"].length
+      );
+      highlightDiv(coords[1], coords[0]);
+      let selectedFilter = $("input:checked", "#heatmap-form").val();
+      if (selectedFilter === "None") return;
+      let current = predictionsDict[selectedFilter][coords[1]][coords[0]];
+      $("#current").text("Current: " + Math.round(current * 1000) / 1000);
+    });
   });
 }
 
-export function deleteGraph(elem) {
-  $(elem).closest(".col").remove();
+export function configureGraph(predictionsDict) {
+  panzoom("#image-interactive", {
+    bound: "outer",
+  });
+  listenFormChange(predictionsDict);
+  addClickCoords(predictionsDict);
+  createEmptyOverlay(predictionsDict["BAP1"], "graph");
+  $(document).ready(() => {
+    $(".image-box").css("height", $(".image-interactive").height());
+  });
 }

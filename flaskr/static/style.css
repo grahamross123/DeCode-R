@@ -5,16 +5,23 @@
 }
 
 .col {
-  width: 50%;
+  width: calc(50% - 10px);
   float: left;
+  padding-right: 10px;
 }
 
 .image-box {
   position: relative;
-  width: 85%;
-  height: 500px;
+  width: 100%;
   overflow: hidden;
-  margin-bottom: 20px;
+}
+
+.options {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-right: 10px;
+  height: 20px;
+  background-color: lightgrey;
 }
 
 .float-l {
@@ -36,6 +43,7 @@
 }
 
 .tile {
+  box-sizing: border-box;
   float: left;
 }
 
@@ -52,4 +60,56 @@
   overflow: overlay;
   position: absolute;
   z-index: 10;
+}
+
+.margin-r {
+  margin-right: 8px;
+}
+
+.margin-b {
+  margin-bottom: 10px;
+}
+
+details[open] summary {
+  border-bottom: 1px solid #aaa;
+  margin-bottom: 0.5em;
+}
+
+summary {
+  font-weight: bold;
+  margin: -0.5em 0;
+  padding: 0.8em;
+}
+
+#ground-truth {
+  width: 400px;
+}
+
+details {
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  margin-top: 15px;
+}
+
+#viewer-container {
+  float: left;
+}
+
+#viewer {
+  height: 500px;
+  background-color: grey;
+}
+
+.highlight {
+  border: 0.05em solid white;
+}
+
+#comment-box {
+  position: relative;
+  background-color: lightgrey;
+  padding: 10px;
+}
+
+#label-form {
+  position: relative;
 }

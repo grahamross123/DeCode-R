@@ -1,22 +1,35 @@
-from flask import Blueprint, render_template, jsonify, url_for
+from flask import Blueprint, render_template, jsonify, url_for, request, Response
 import random
 from PIL import Image
 import base64
 import io
 import csv
+from flaskr.db import get_db
 
 
 bp = Blueprint("heatmap", __name__, url_prefix="/heatmap")
 IMG_PATH = './flaskr/static/images/slide2.jpeg'
 PRED_PATH_BAP1 = './flaskr/static/predictions_BAP1.tsv'
 PRED_PATH_PBRM1 = './flaskr/static/predictions_PBRM1.tsv'
+GROUND_TRUTH = {"PBRM1": 1, "BAP1": 0}
+REGION_NAME = "Region Name"
 
 
-@bp.route("/")
+@bp.route('', strict_slashes=False, methods=["GET", "POST"])
 def tiles():
-  predictions = create_all_predictions()
-  return render_template("heatmap.html", predictions=predictions, slide_image=load_slide(IMG_PATH))
-
+  if request.method == "GET":
+    print("get request")
+    predictions = create_all_predictions()
+    return render_template(
+      "heatmap.html", 
+      predictions=predictions, 
+      slide_image=load_slide(IMG_PATH),
+      ground_truth=GROUND_TRUTH,
+      name=REGION_NAME
+      )
+  else:
+    print("post request")
+    return Response(status=200)
 
 def create_all_predictions():
   predictions = {}

@@ -2,27 +2,82 @@
 <meta id="img-path" data-name="{{ slide_image }}" />
 {% endblock %} {% block content %}
 <script type="module">
-  import {
-    listenFormChange,
-    addGraph,
-    deleteGraph,
-  } from "{{ url_for('static', filename='heatmap.js') }}";
+  import { configureGraph } from "{{ url_for('static', filename='heatmap.js') }}";
   var graphIdx = 0;
   const predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
   const mutations = Object.keys(predictions);
-  listenFormChange(predictions);
-  document.querySelector("#add-graph-button").addEventListener("click", () => {
-    addGraph($("#img-path").data().name, mutations, (graphIdx += 1));
-  });
-  window.deleteGraph = deleteGraph;
-  addGraph($("#img-path").data().name, mutations, (graphIdx += 1));
+  configureGraph(predictions);
 </script>
-
+<script src="{{ url_for('static', filename='form.js') }}"></script>
 <a href="/">Return to menu</a>
+<h1>Region: {{ name }}</h1>
 <div class="row">
-  <script></script>
+  <div id="viewer-container" class="col">
+    <div id="viewer"></div>
+    <div id="comment-box">
+      <form id="label-form">
+        <input
+          type="text"
+          id="label-form"
+          name="fname"
+          placeholder="Add label"
+        />
+        <input type="submit" value="Add" />
+      </form>
+    </div>
+  </div>
+  <div class="col" id="graph">
+    <div class="options">
+      <form id="heatmap-form">
+        <div class="float-l margin-r">
+          <label for="None">
+            <input type="radio" id="None" name="overlay" value="None" checked />
+            None
+          </label>
+          {% for mutation in predictions.keys() %}
+          <label for="{{ mutation }}">
+            <input
+              type="radio"
+              id="{{ mutation }}"
+              name="overlay"
+              value="{{ mutation }}"
+            />
+            {{ mutation }}
+          </label>
+          {% endfor %}
+        </div>
+      </form>
+      <div
+        style="margin-top: 1.3px; margin-left: 10px"
+        class="float-r margin-r"
+        id="current"
+      >
+        Current:
+      </div>
+    </div>
+    <div class="image-box float-l">
+      <div class="image-interactive" id="image-interactive">
+        <img
+          class="image"
+          src="data:image/jpeg;base64,{{ slide_image }}"
+          alt="Scan"
+        />
+        <div class="predictions"></div>
+      </div>
+    </div>
+  </div>
 </div>
-<div style="display: block">
-  <button id="add-graph-button">Add graph</button>
+<div class="col" style="margin-top: 10px">
+  <div id="ground-truth">
+    <details>
+      <summary>Genomic Labels (Ground Truth)</summary>
+      <div style="padding-left: 10px">
+        {% for mutation in ground_truth %}
+        <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
+        {% endfor %}
+        <p>'1' represents mutant; '0' represents not mutant</p>
+      </div>
+    </details>
+  </div>
 </div>
 {% endblock %}
