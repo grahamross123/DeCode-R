@@ -21,6 +21,10 @@
   background-color: lightgrey;
 }
 
+.margin-l {
+  margin-left: 10px;
+}
+
 .float-l {
   float: left;
 }
@@ -98,15 +102,38 @@ details {
 }
 
 .highlight {
-  border: 0.05em solid white;
+  border: 0.05em solid white !important;
+}
+
+.label {
+  border: 0.05em solid yellow;
 }
 
 #comment-box {
+  display: table;
   position: relative;
   background-color: lightgrey;
   padding: 10px;
+  width: calc(100% - 20px);
 }
 
 #label-form {
   position: relative;
+  visibility: hidden;
+}
+
+.label-item {
+  overflow: auto;
+  margin-bottom: 10px;
+}
+
+#label-list {
+  overflow: auto;
+  list-style-type: none;
+  padding: 0px;
+  margin: 0px;
+}
+
+body {
+  font: normal 14px Verdana, Arial, sans-serif;
 }

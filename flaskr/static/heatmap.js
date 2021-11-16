@@ -13,7 +13,7 @@ function createEmptyOverlay(predictions) {
     for (let j = 0; j < predictions[i].length; j++) {
       let pred = document.createElement("div");
       pred.classList.add("tile");
-      pred.id = pad(i, 4) + pad(j, 4); // Add coordinates to the id
+      pred.id = i + pad(j, 4); // Add coordinates to the id
       pred.style.width = widthPct + "%";
       pred.style.height = "100%";
       row.appendChild(pred);
@@ -41,6 +41,35 @@ function createOverlay(predictions, empty) {
   }
 }
 
+function addLabels(labelsDict) {
+  $("#image-interactive")
+    .find(".predictions")
+    .children()
+    .each((i, row) => {
+      [...row.children].forEach((cell, j) => {
+        if (labelsDict[cell.id]) {
+          cell.classList.add("label");
+        }
+      });
+    });
+}
+
+function removeLabels() {
+  $("#image-interactive").find(".label").removeClass("label");
+}
+
+function listenShowLabels(labelsDict) {
+  $(document).ready(() => {
+    $("#labels-checkbox").on("change", (event) => {
+      if ($("#labels-checkbox").is(":checked")) {
+        addLabels(labelsDict);
+      } else {
+        removeLabels();
+      }
+    });
+  });
+}
+
 function prob2rgba(prob, opacity) {
   if (prob < 0.5) {
     let colour = prob * 2 * 255;
@@ -55,7 +84,7 @@ function prob2rgba(prob, opacity) {
 // Listen for a change in the radio form and update the graph overlay accordingly
 function listenFormChange(predictionsDict) {
   $(document).ready(() => {
-    $("#heatmap-form").on("change", (event) => {
+    $("#heatmap-dropdown").on("change", (event) => {
       let value = event.target.value;
       // Add empty overlay if "none" is selected
       if (value === "None") {
@@ -79,15 +108,52 @@ function pixel2coord(x, y, width, height, ncols, nrows) {
   return [Math.floor(xcoord), Math.floor(ycoord)];
 }
 
-function highlightDiv(x, y) {
-  let divId = pad(x, 4) + pad(y, 4);
+function showCommentBox(divId, labelsDict) {
+  $("#label-list").empty();
+  if (labelsDict[divId]) {
+    labelsDict[divId].forEach((label) => {
+      var labelItem = $(`<li class='label-item'></li>`);
+      var labelText = $(`<div class="label-text float-l">${label}</div>`);
+      var button = $(`<button class="float-l margin-l">Delete</button>`);
+      button.on("click", (event) => {
+        handleDeleteLabel(event, divId);
+      });
+      labelItem.append(labelText);
+      labelItem.append(button);
+      $("#label-list").append(labelItem);
+    });
+  } else {
+  }
+  $("#label-form").css("visibility", "visible");
+}
+
+function handleDeleteLabel(event, divId) {
+  let label = $(event.target).siblings(".label-text").text();
+  let name = document.head.querySelector("[property~=name][content]").content;
+  fetch("/heatmap/remove-label", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ label: label, coords: divId, name: name }),
+  })
+    .then((res) => {
+      if (res.status === 200) {
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+}
+
+function highlightDiv(x, y, labelsDict) {
+  let divId = x + pad(y, 4);
   // Remove original highlight
   $(".highlight").removeClass("highlight");
   // Add new highlight
   $("#" + divId).addClass("highlight");
+  showCommentBox(divId, labelsDict);
 }
 
-function addClickCoords(predictionsDict) {
+function addClickCoords(predictionsDict, labelsDict) {
   $(document).ready(function () {
     $("#image-interactive").dblclick(function (event) {
       let coords = pixel2coord(
@@ -95,10 +161,10 @@ function addClickCoords(predictionsDict) {
         event.offsetY,
         this.offsetWidth,
         this.offsetHeight,
-        predictionsDict["BAP1"][0].length, // TODO: Add support for multiple rows / cols for different mutations
+        predictionsDict["BAP1"][0].length,
         predictionsDict["BAP1"].length
       );
-      highlightDiv(coords[1], coords[0]);
+      highlightDiv(coords[1], coords[0], labelsDict);
       let selectedFilter = $("#heatmap-form").find(":selected").text();
       if (selectedFilter === "None") return;
       let current = predictionsDict[selectedFilter][coords[1]][coords[0]];
@@ -107,13 +173,14 @@ function addClickCoords(predictionsDict) {
   });
 }
 
-export function configureGraph(predictionsDict) {
+export function configureGraph(predictionsDict, labelsDict) {
   panzoom("#image-interactive", {
     bound: "outer",
   });
   listenFormChange(predictionsDict);
-  addClickCoords(predictionsDict);
+  addClickCoords(predictionsDict, labelsDict);
   createEmptyOverlay(predictionsDict["BAP1"], "graph");
+  listenShowLabels(labelsDict);
   $(document).ready(() => {
     $(".image-box").css("height", $(".image-interactive").height());
   });

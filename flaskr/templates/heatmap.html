@@ -1,16 +1,27 @@
 {% extends 'base.html' %} {% block header %}
-<meta id="img-path" data-name="{{ slide_image }}" />
+<meta property="name" content="{{ name }}" />
 {% endblock %} {% block content %}
 <script type="module">
   import { configureGraph } from "{{ url_for('static', filename='heatmap.js') }}";
-  import { handleLabelForm } from "{{ url_for('static', filename='form.js') }}";
-
-  var graphIdx = 0;
+  import {
+    handleAddLabel,
+    handleRemoveLabel,
+  } from "{{ url_for('static', filename='form.js') }}";
   const predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
+  const labels = JSON.parse(`{{ labels | tojson | safe }}`);
   const mutations = Object.keys(predictions);
   const name = "{{ name }}";
-  configureGraph(predictions);
-  handleLabelForm(name);
+
+  configureGraph(predictions, labels);
+  handleAddLabel(name);
+  handleRemoveLabel(name);
+</script>
+<script>
+  function filterLabels() {
+    let input = $("#label-input");
+    let filter = input.value.toLowerCase();
+    let ul;
+  }
 </script>
 <a href="/">Return to menu</a>
 <h1>Region: {{ name }}</h1>
@@ -18,27 +29,49 @@
   <div id="viewer-container" class="col">
     <div id="viewer"></div>
     <div id="comment-box">
-      <form id="label-form">
+      <ul id="label-list"></ul>
+      <form class="float-l" id="label-form">
         <input
           type="text"
-          id="label-form"
           name="label"
           placeholder="Add label"
+          id="label-input"
         />
         <input type="submit" value="Add" />
       </form>
+      <div class="float-l" id="label-comment" style="margin-left: 10px"></div>
+    </div>
+    <div id="ground-truth">
+      <details>
+        <summary>Genomic Labels (Ground Truth)</summary>
+        <div style="padding-left: 10px">
+          {% for mutation in ground_truth %}
+          <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
+          {% endfor %}
+          <p>'1' represents mutant; '0' represents not mutant</p>
+        </div>
+      </details>
     </div>
   </div>
   <div class="col" id="graph">
     <div class="options padding">
       <form class="float-l" id="heatmap-form">
-        <label for="heatmaps">Heatmaps: </label>
-        <select name="heatmaps" id="heatmaps">
+        <label for="heatmap-dropdown">Heatmaps: </label>
+        <select name="heatmaps" id="heatmap-dropdown">
           <option value="None">None</option>
           {% for mutation in predictions.keys() %}
           <option value="{{ mutation }}">{{ mutation }}</option>
           {% endfor %}
         </select>
+        <label for="labels-checkbox" style="margin-left: 10px"
+          >Show labels</label
+        >
+        <input
+          type="checkbox"
+          id="labels-checkbox"
+          name="labels"
+          onkeyup="filterLabels()"
+        />
       </form>
       <div
         style="margin-top: 1.3px; margin-left: 10px"
@@ -60,17 +93,5 @@
     </div>
   </div>
 </div>
-<div class="col" style="margin-top: 10px">
-  <div id="ground-truth">
-    <details>
-      <summary>Genomic Labels (Ground Truth)</summary>
-      <div style="padding-left: 10px">
-        {% for mutation in ground_truth %}
-        <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
-        {% endfor %}
-        <p>'1' represents mutant; '0' represents not mutant</p>
-      </div>
-    </details>
-  </div>
-</div>
+<div class="col" style="margin-top: 10px"></div>
 {% endblock %}

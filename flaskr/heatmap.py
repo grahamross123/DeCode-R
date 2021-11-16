@@ -18,23 +18,72 @@ REGION_NAME = "Region Name"
 @bp.route('', strict_slashes=False)
 def tiles():
   predictions = create_all_predictions()
+  labels = {}
+  # Obtain all labels for the current slide
+  try:
+    db = get_db()
+    # Obtain all tiles on the current slide which have a label
+    tiles_query = db.execute("""
+      SELECT tiles.coords, labels.label FROM tile_labels 
+      JOIN labels ON labels.id = tile_labels.label_id
+      JOIN tiles ON tiles.id = tile_labels.tile_id
+      JOIN slides ON tiles.slide_id = slides.id
+      WHERE slides.slide_name = ?
+      """, (REGION_NAME,))
+    tile_labels = tiles_query.fetchall()
+    for tile in tile_labels:
+      if tile['coords'] in labels:
+        labels[tile['coords']].append(tile['label'])
+      else:
+        labels[tile["coords"]] = [tile["label"]]
+  except TypeError as e:
+    print(e)
   return render_template(
     "heatmap.html", 
     predictions=predictions, 
     slide_image=load_slide(IMG_PATH),
     ground_truth=GROUND_TRUTH,
-    name=REGION_NAME
+    name=REGION_NAME,
+    labels=labels
     )
     
+@bp.route('/remove-label', methods=["POST"])
+def remove_label():
+  req = request.get_json()
+  print(req)
+  try: 
+    db = get_db()
+    db.execute("""
+      DELETE FROM tile_labels
+      WHERE id IN (
+        SELECT tile_labels.id FROM tile_labels
+        JOIN labels ON labels.id = tile_labels.label_id
+        JOIN tiles ON tiles.id = tile_labels.tile_id
+        JOIN slides ON tiles.slide_id = slides.id
+        WHERE slides.slide_name=? AND tiles.coords=? AND labels.label=?
+      )
+    """,
+    (req['name'], req['coords'], req['label']))
+    db.commit()
+  except db.IntegrityError as e:
+    print(e)
+    return Response(status=500)
 
-@bp.route('/label', methods=["POST"])
+  return Response(status=200)
+
+
+@bp.route('/add-label', methods=["POST"])
 def add_label():
   req = request.get_json()
   db = get_db()
+  # Check for valid input
+  if len(req['label']) <= 0:
+    return Response(status=400)
+
   try:
     # Check if slide is already added
     slides = db.execute(
-            "SELECT * FROM slides where slide_name=?",
+            "SELECT * FROM slides WHERE slide_name=?",
             (req['name'],),
             )
     slide = slides.fetchone()
@@ -47,27 +96,36 @@ def add_label():
     # Check if tile is already added
     else:
       slide_id = slide["id"]
-      tiles = db.execute("SELECT * FROM tiles where slide_id=? AND coords=?", (slide_id, req['coords']))
+      tiles = db.execute("SELECT * FROM tiles WHERE slide_id=? AND coords=?", (slide_id, req['coords']))
       tile = tiles.fetchone()
-
       # If tile doesn't exist in db, add it with new label
       if not tile:
         db.execute(
-          "INSERT INTO tiles (slide_id, coords, label) VALUES (?, ?, ?)", 
-          (slide_id, req['coords'], req['label'])
+          "INSERT INTO tiles (slide_id, coords) VALUES (?, ?)", 
+          (slide_id, req['coords'])
           )
         db.commit()
-        
-      # Otherwise, update the existing label
-      else:
-        db.execute(
-          "UPDATE tiles SET label=? WHERE slide_id=? AND coords=?", 
-          (slide_id, req['coords'], req['label'])
-          )
-        db.commit()
+    
+    # Check if label exists
+    labels = db.execute("SELECT * FROM labels WHERE label=?", (req['label'],))
+    label = labels.fetchone()
+    if not label:
+      db.execute("INSERT INTO labels (label) VALUES (?)", (req['label'],))
+      db.commit()
 
-  except Exception as e:
+    tile = db.execute("SELECT id FROM tiles WHERE slide_id=(SELECT id FROM slides WHERE slide_name=?) AND coords=?", (req['name'], req['coords']))
+    tile_id = tile.fetchone()['id']
+    label = db.execute("SELECT id FROM labels WHERE label=?", (req['label'],))
+    label_id = label.fetchone()['id']
+    # Add the new label
+    db.execute(
+      "INSERT INTO tile_labels (tile_id, label_id) VALUES (?, ?)",
+      (tile_id, label_id))
+    db.commit()
+
+  except db.IntegrityError as e:
     print(e)
+    return Response(status=500)
 
   return Response(status=200)
 
