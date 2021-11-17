@@ -8,6 +8,9 @@ export function listenAddLabel(name) {
 }
 
 function handleAddLabel(event, name) {
+  // TODO: adding a unique label doesn't update the select labels dropdown
+  // i.e. need to refresh page to see it
+
   event.preventDefault(); // prevent page from refreshing
   const formData = new FormData(event.target); // grab the data inside the form fields
   if (!$(".highlight")[0]) return; // If no cell is highlighted, don't post anything

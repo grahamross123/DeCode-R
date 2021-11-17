@@ -1,5 +1,4 @@
-from flask import Blueprint, render_template, jsonify, url_for, request, Response
-import random
+from flask import Blueprint, render_template, request, Response
 from PIL import Image
 import base64
 import io
@@ -19,9 +18,14 @@ REGION_NAME = "Region Name"
 def tiles():
   predictions = create_all_predictions()
   labels = {}
+  all_labels = []
   # Obtain all labels for the current slide
   try:
     db = get_db()
+    # Obtain all labels in the labels table
+    labels_query = db.execute("SELECT label FROM labels")
+    for label in labels_query.fetchall():
+      all_labels.append(label["label"])
     # Obtain all tiles on the current slide which have a label
     tiles_query = db.execute("""
       SELECT tiles.coords, labels.label FROM tile_labels 
@@ -31,12 +35,13 @@ def tiles():
       WHERE slides.slide_name = ?
       """, (REGION_NAME,))
     tile_labels = tiles_query.fetchall()
+
     for tile in tile_labels:
       if tile['coords'] in labels:
         labels[tile['coords']].append(tile['label'])
       else:
         labels[tile["coords"]] = [tile["label"]]
-  except TypeError as e:
+  except Exception as e:
     print(e)
   return render_template(
     "heatmap.html", 
@@ -44,13 +49,13 @@ def tiles():
     slide_image=load_slide(IMG_PATH),
     ground_truth=GROUND_TRUTH,
     name=REGION_NAME,
-    labels=labels
+    labels=labels,
+    all_labels=all_labels
     )
     
 @bp.route('/remove-label', methods=["POST"])
 def remove_label():
   req = request.get_json()
-  print(req)
   try: 
     db = get_db()
     db.execute("""

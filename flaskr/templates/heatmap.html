@@ -48,16 +48,25 @@
           <option value="{{ mutation }}">{{ mutation }}</option>
           {% endfor %}
         </select>
-        <label for="labels-checkbox" style="margin-left: 10px"
-          >Show labels</label
-        >
-        <input
-          type="checkbox"
-          id="labels-checkbox"
-          name="labels"
-          onkeyup="filterLabels()"
-        />
       </form>
+      <div class="dropdown float-l margin-l" data-control="checkbox-dropdown">
+        <label class="dropdown-label">Select Labels</label>
+
+        <div class="dropdown-list" id="labels-checkbox">
+          <label class="dropdown-option">
+            <input type="checkbox" name="dropdown-group" id="select-all" />
+            Select all
+          </label>
+          <hr />
+          {% for label in all_labels %}
+          <label class="dropdown-option">
+            <input type="checkbox" name="dropdown-group" value="{{ label }}" />
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
       <div
         style="margin-top: 1.3px; margin-left: 10px"
         class="float-r margin-r"
