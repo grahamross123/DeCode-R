@@ -61,6 +61,7 @@ def remove_label():
         JOIN tiles ON tiles.id = tile_labels.tile_id
         JOIN slides ON tiles.slide_id = slides.id
         WHERE slides.slide_name=? AND tiles.coords=? AND labels.label=?
+        LIMIT 1
       )
     """,
     (req['name'], req['coords'], req['label']))

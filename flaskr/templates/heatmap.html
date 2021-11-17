@@ -2,26 +2,11 @@
 <meta property="name" content="{{ name }}" />
 {% endblock %} {% block content %}
 <script type="module">
-  import { configureGraph } from "{{ url_for('static', filename='heatmap.js') }}";
-  import {
-    handleAddLabel,
-    handleRemoveLabel,
-  } from "{{ url_for('static', filename='form.js') }}";
-  const predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
-  const labels = JSON.parse(`{{ labels | tojson | safe }}`);
-  const mutations = Object.keys(predictions);
-  const name = "{{ name }}";
-
-  configureGraph(predictions, labels);
-  handleAddLabel(name);
-  handleRemoveLabel(name);
-</script>
-<script>
-  function filterLabels() {
-    let input = $("#label-input");
-    let filter = input.value.toLowerCase();
-    let ul;
-  }
+  import { initHeatmap } from "{{ url_for('static', filename='js/heatmap.js') }}";
+  window.labelsDict = JSON.parse(`{{ labels | tojson | safe }}`);
+  var predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
+  var name = "{{ name }}";
+  initHeatmap(predictions, name);
 </script>
 <a href="/">Return to menu</a>
 <h1>Region: {{ name }}</h1>
