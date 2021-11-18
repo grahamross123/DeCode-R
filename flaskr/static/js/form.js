@@ -1,13 +1,18 @@
-import { addCommentBoxLabel, removeCommentBoxLabel } from "./heatmap.js";
+import {
+  addCommentBoxLabel,
+  removeCommentBoxLabel,
+  labelsDict,
+  name,
+} from "./heatmap.js";
 
-export function listenAddLabel(name) {
+export function listenAddLabel() {
   let form = document.getElementById("label-form");
   form.addEventListener("submit", (event) => {
-    handleAddLabel(event, name);
+    handleAddLabel(event);
   });
 }
 
-function handleAddLabel(event, name) {
+function handleAddLabel(event) {
   // TODO: adding a unique label doesn't update the select labels dropdown
   // i.e. need to refresh page to see it
 
@@ -42,11 +47,11 @@ function handleAddLabel(event, name) {
         // Clear the label input
         document.getElementById("label-input").value = "";
         // Add the new label to the global variable labelsDict
-        if (window.labelsDict[coords]) {
+        if (labelsDict[coords]) {
           console.log(labelsDict[coords]);
-          window.labelsDict[coords].push(label);
+          labelsDict[coords].push(label);
         } else {
-          window.labelsDict[coords] = [label];
+          labelsDict[coords] = [label];
         }
         // Add the new label to the current list of labels
         addCommentBoxLabel(label, coords);
@@ -62,7 +67,6 @@ function handleAddLabel(event, name) {
 
 export function handleDeleteLabel(event, divId) {
   let label = $(event.target).siblings(".label-text").text();
-  let name = document.head.querySelector("[property~=name][content]").content;
   fetch("/heatmap/remove-label", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -71,10 +75,10 @@ export function handleDeleteLabel(event, divId) {
     .then((res) => {
       if (res.status === 200) {
         removeCommentBoxLabel(label);
-        window.labelsDict[divId].pop();
+        labelsDict[divId].pop();
         // Delete the key in the dict if there are no labels
-        if (window.labelsDict[divId].length === 0) {
-          delete window.labelsDict[divId];
+        if (labelsDict[divId].length === 0) {
+          delete labelsDict[divId];
         }
       }
     })

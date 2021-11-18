@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, Response
+from flask import Blueprint, render_template, request, Response, jsonify
 from PIL import Image
 import base64
 import io
@@ -7,7 +7,7 @@ from flaskr.db import get_db
 
 
 bp = Blueprint("heatmap", __name__, url_prefix="/heatmap")
-IMG_PATH = './flaskr/static/images/slide2.jpeg'
+IMG_PATH = './flaskr/static/images/slide.jpeg'
 PRED_PATH_BAP1 = './flaskr/static/predictions_BAP1.tsv'
 PRED_PATH_PBRM1 = './flaskr/static/predictions_PBRM1.tsv'
 GROUND_TRUTH = {"PBRM1": 1, "BAP1": 0}
@@ -135,7 +135,13 @@ def add_label():
 
   return Response(status=200)
 
-
+@bp.route('/get-tile')
+def get_tile():
+  name = request.args.get('name')
+  tile_id = request.args.get('tileId')
+  mag = request.args.get('mag')
+  # TODO: Use Omero API to retreive given tile at the selected magnification
+  return jsonify(load_slide(IMG_PATH))
 
 def create_all_predictions():
   predictions = {}

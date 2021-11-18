@@ -3,28 +3,36 @@
 {% endblock %} {% block content %}
 <script type="module">
   import { initHeatmap } from "{{ url_for('static', filename='js/heatmap.js') }}";
-  window.labelsDict = JSON.parse(`{{ labels | tojson | safe }}`);
+  var labelsDict = JSON.parse(`{{ labels | tojson | safe }}`);
   var predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
   var name = "{{ name }}";
-  initHeatmap(predictions, name);
+  initHeatmap(predictions, labelsDict, name);
 </script>
-<a href="/">Return to menu</a>
-<h1>Region: {{ name }}</h1>
-<div class="row">
-  <div id="viewer-container" class="col">
-    <div id="viewer"></div>
+<div class="top-nav">
+  <a href="/">Return to menu</a>
+</div>
+<div class="side-nav"></div>
+<div class="wrapper float-l">
+  <h1>Region: {{ name }}</h1>
+  <div id="viewer" class="float-l">
+    <img id="viewer-img" />
     <div id="comment-box">
-      <ul id="label-list"></ul>
-      <form class="float-l" id="label-form">
-        <input
-          type="text"
-          name="label"
-          placeholder="Add label"
-          id="label-input"
-        />
-        <input type="submit" value="Add" />
-      </form>
-      <div class="float-l" id="label-comment" style="margin-left: 10px"></div>
+      <div class="float-l">
+        <ul id="label-list"></ul>
+        <form class="float-l" id="label-form">
+          <input
+            type="text"
+            name="label"
+            placeholder="Add label"
+            id="label-input"
+          />
+          <input type="submit" value="Add" />
+        </form>
+        <div class="float-l" id="label-comment" style="margin-left: 10px"></div>
+      </div>
+      <div class="float-r">
+        <button id="magnification-button">x 10</button>
+      </div>
     </div>
     <div id="ground-truth">
       <details>
@@ -40,19 +48,30 @@
   </div>
   <div class="col" id="graph">
     <div class="options padding">
-      <form class="float-l" id="heatmap-form">
-        <label for="heatmap-dropdown">Heatmaps: </label>
-        <select name="heatmaps" id="heatmap-dropdown">
-          <option value="None">None</option>
-          {% for mutation in predictions.keys() %}
-          <option value="{{ mutation }}">{{ mutation }}</option>
-          {% endfor %}
-        </select>
-      </form>
       <div class="dropdown float-l margin-l" data-control="checkbox-dropdown">
-        <label class="dropdown-label">Select Labels</label>
+        <label class="dropdown-label" id="heatmap-label">Select Heatmap</label>
+        <div class="dropdown-list" id="heatmap-radio-list">
+          <label class="dropdown-option">
+            <input
+              type="radio"
+              name="dropdown-group"
+              value="None"
+              checked="checked"
+            />
+            None
+          </label>
+          {% for mutation in predictions.keys() %}
+          <label class="dropdown-option">
+            <input type="radio" name="dropdown-group" value="{{ mutation }}" />
+            {{ mutation }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="dropdown float-l margin-l" data-control="checkbox-dropdown">
+        <label class="dropdown-label" id="labels-label">Select Labels</label>
 
-        <div class="dropdown-list" id="labels-checkbox">
+        <div class="dropdown-list" id="labels-checkbox-list">
           <label class="dropdown-option">
             <input type="checkbox" name="dropdown-group" id="select-all" />
             Select all
@@ -87,5 +106,4 @@
     </div>
   </div>
 </div>
-<div class="col" style="margin-top: 10px"></div>
 {% endblock %}

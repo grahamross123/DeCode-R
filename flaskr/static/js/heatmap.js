@@ -3,6 +3,9 @@ import { listenAddLabel, handleDeleteLabel } from "./form.js";
 import { prob2rgba, pad, pixel2coord } from "./util.js";
 
 var selectedLabels = [];
+export var labelsDict;
+export var name;
+var magnification;
 
 // Create an array of empty divs corresponding to the size of the predictions array
 function createEmptyOverlay(predictions) {
@@ -51,8 +54,8 @@ function showLabels() {
     .children()
     .each((i, row) => {
       [...row.children].forEach((cell, j) => {
-        if (window.labelsDict[cell.id]) {
-          let isIncluded = window.labelsDict[cell.id].some((ai) =>
+        if (labelsDict[cell.id]) {
+          let isIncluded = labelsDict[cell.id].some((ai) =>
             selectedLabels.includes(ai)
           );
           if (isIncluded) {
@@ -67,21 +70,37 @@ function hideLabels() {
   $("#image-interactive").find(".label").removeClass("label");
 }
 
+function listenIncreaseMag() {
+  $("#magnification-button").click((event) => {
+    // TODO: After increasing magnification, reload the image
+    if (event.target.innerText === "x 10") {
+      event.target.innerText = "x 20";
+      magnification = 20;
+    } else if (event.target.innerText === "x 20") {
+      event.target.innerText = "x 40";
+      magnification = 40;
+    } else if (event.target.innerText === "x 40") {
+      event.target.innerText = "x 10";
+      magnification = 10;
+    }
+  });
+}
+
 function listenShowLabels() {
   listenSelectAll();
   $(document).click(() => {
-    $(".dropdown-list").removeClass("active");
-    $(".dropdown-label").removeClass("active");
+    $("#labels-checkbox-list").removeClass("active");
+    $("#labels-label").removeClass("active");
   });
-  $(".dropdown-label").click((event) => {
+  $("#labels-label").click((event) => {
     event.stopPropagation();
-    $(".dropdown-label").toggleClass("active");
-    $(".dropdown-list").toggleClass("active");
+    $("#labels-label").toggleClass("active");
+    $("#labels-checkbox-list").toggleClass("active");
   });
-  $(".dropdown-list").click((event) => {
+  $("#labels-checkbox-list").click((event) => {
     event.stopPropagation();
   });
-  $("#labels-checkbox").on("change", (event) => {
+  $("#labels-checkbox-list").on("change", (event) => {
     let dropdownItems = $(".dropdown-option").find("input");
     selectedLabels = [];
     for (var i = 0; i < dropdownItems.length; i++) {
@@ -99,9 +118,37 @@ function listenShowLabels() {
   });
 }
 
+// Listen for the select all button in the dropdown menu
+function listenSelectAll() {
+  $("#select-all").on("change", (event) => {
+    toggleSelectAll(event.target);
+  });
+}
+
+// Check / uncheck all boxes in dropdown menu
+function toggleSelectAll(source) {
+  let checkboxes = $("#labels-checkbox-list").find("input");
+  for (let i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = source.checked;
+  }
+}
+
 // Listen for a change in the radio form and update the graph overlay accordingly
 function listenHeatmapDropdown(predictionsDict) {
-  $("#heatmap-dropdown").on("change", (event) => {
+  listenSelectAll();
+  $(document).click(() => {
+    $("#heatmap-radio-list").removeClass("active");
+    $("#heatmap-label").removeClass("active");
+  });
+  $("#heatmap-label").click((event) => {
+    event.stopPropagation();
+    $("#heatmap-label").toggleClass("active");
+    $("#heatmap-radio-list").toggleClass("active");
+  });
+  $("#heatmap-radio-list").click((event) => {
+    event.stopPropagation();
+  });
+  $("#heatmap-radio-list").on("change", (event) => {
     let value = event.target.value;
     // Add empty overlay if "none" is selected
     if (value === "None") {
@@ -110,19 +157,6 @@ function listenHeatmapDropdown(predictionsDict) {
     }
     colourOverlay(predictionsDict[value], false);
   });
-}
-
-function listenSelectAll() {
-  $("#select-all").on("change", (event) => {
-    toggleSelectAll(event.target);
-  });
-}
-
-function toggleSelectAll(source) {
-  let checkboxes = $(".dropdown-option").find("input");
-  for (let i = 0; i < checkboxes.length; i++) {
-    checkboxes[i].checked = source.checked;
-  }
 }
 
 // Removes a label from the comment box given the label name
@@ -149,8 +183,8 @@ export function addCommentBoxLabel(label, divId) {
 function showCommentBox(divId) {
   $("#label-list").empty();
   let comment = $("#label-comment").empty();
-  if (window.labelsDict[divId]) {
-    window.labelsDict[divId].forEach((label) => {
+  if (labelsDict[divId]) {
+    labelsDict[divId].forEach((label) => {
       addCommentBoxLabel(label, divId);
     });
   }
@@ -162,6 +196,31 @@ function highlightDiv(divId) {
   $(".highlight").removeClass("highlight");
   // Add new highlight
   $("#" + divId).addClass("highlight");
+}
+
+function updateSelectedProb(coords, predictionsDict) {
+  let selectedFilter = $("#heatmap-radio-list").find("input:checked").val();
+  if (selectedFilter === "None") return;
+  let current = predictionsDict[selectedFilter][coords[1]][coords[0]];
+  $("#current").text("Current: " + Math.round(current * 1000) / 1000);
+}
+
+function updateTileView(divId) {
+  const params = new URLSearchParams({
+    name: name,
+    tileId: divId,
+    mag: magnification,
+  });
+  fetch(`/heatmap/get-tile?${params.toString()}`, {
+    method: "GET",
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      document.getElementById(
+        "viewer-img"
+      ).src = `data:image/jpeg;base64,${data}`;
+    })
+    .catch((err) => {});
 }
 
 // Handles double clicking on the interactive image
@@ -179,11 +238,9 @@ function handleDblClick(event, predictionsDict) {
   );
   let divId = coords[1] + pad(coords[0], 4);
   highlightDiv(divId);
+  updateTileView(divId, 10);
   showCommentBox(divId);
-  let selectedFilter = $("#heatmap-form").find(":selected").text();
-  if (selectedFilter === "None") return;
-  let current = predictionsDict[selectedFilter][coords[1]][coords[0]];
-  $("#current").text("Current: " + Math.round(current * 1000) / 1000);
+  updateSelectedProb(coords, predictionsDict);
 }
 
 function listenDblClick(predictionsDict) {
@@ -192,14 +249,20 @@ function listenDblClick(predictionsDict) {
   });
 }
 
-export function initHeatmap(predictionsDict, name) {
+export function initHeatmap(predictionsDict, _labelsDict, _name) {
+  // Add template variables to global scope
+  labelsDict = _labelsDict;
+  name = _name;
   panzoom("#image-interactive", {
-    bound: "outer",
+    bound: "none",
   });
   createEmptyOverlay(predictionsDict["BAP1"], "graph");
   listenHeatmapDropdown(predictionsDict);
   listenShowLabels();
-  listenAddLabel(name);
+  listenAddLabel();
   listenDblClick(predictionsDict);
-  $(".image-box").css("height", $(".image-interactive").height());
+  listenIncreaseMag();
+  //$(".image-box").css("height", $(".image-interactive").height());
+  $(".image-box").css("height", $("#viewer-img").width());
+  $("#viewer-img").css("height", $("#viewer-img").width());
 }
