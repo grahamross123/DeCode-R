@@ -188,7 +188,8 @@ function showCommentBox(divId) {
       addCommentBoxLabel(label, divId);
     });
   }
-  $("#label-form").css("visibility", "visible");
+  $("#no-tile-selected").css("display", "none");
+  $("#label-form").css("display", "block");
 }
 
 function highlightDiv(divId) {
@@ -199,10 +200,15 @@ function highlightDiv(divId) {
 }
 
 function updateSelectedProb(coords, predictionsDict) {
-  let selectedFilter = $("#heatmap-radio-list").find("input:checked").val();
-  if (selectedFilter === "None") return;
-  let current = predictionsDict[selectedFilter][coords[1]][coords[0]];
-  $("#current").text("Current: " + Math.round(current * 1000) / 1000);
+  let heatmapInputs = $("#heatmap-radio-list").find("input");
+  for (let i = 0; i < heatmapInputs.length; i++) {
+    let mutation = heatmapInputs[i].value;
+    if (mutation === "None") continue;
+    let probability = predictionsDict[mutation][coords[1]][coords[0]];
+    $("#" + mutation).text(
+      mutation + ": " + Math.round(probability * 1000) / 1000
+    );
+  }
 }
 
 function updateTileView(divId) {
@@ -263,6 +269,9 @@ export function initHeatmap(predictionsDict, _labelsDict, _name) {
   listenDblClick(predictionsDict);
   listenIncreaseMag();
   //$(".image-box").css("height", $(".image-interactive").height());
+  //$(".image-box").css("height", $("#viewer-img").width());
+
+  //$("#image-interactive").css("top", "200px");
   $(".image-box").css("height", $("#viewer-img").width());
-  $("#viewer-img").css("height", $("#viewer-img").width());
+  $("#image-interactive").css("transform", "translate(0, 20%)");
 }

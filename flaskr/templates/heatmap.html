@@ -3,22 +3,57 @@
 {% endblock %} {% block content %}
 <script type="module">
   import { initHeatmap } from "{{ url_for('static', filename='js/heatmap.js') }}";
+  import { initUi } from "{{ url_for('static', filename='js/ui.js') }}";
   var labelsDict = JSON.parse(`{{ labels | tojson | safe }}`);
   var predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
   var name = "{{ name }}";
+  initUi();
   initHeatmap(predictions, labelsDict, name);
 </script>
 <div class="top-nav">
   <a href="/">Return to menu</a>
 </div>
-<div class="side-nav"></div>
+<div class="side-nav">
+  <div class="side-nav-tabs">
+    <button class="side-nav-button btn-active" id="search-slides-button">
+      Search slides
+    </button>
+    <button class="side-nav-button" id="current-slide-button">
+      Current slide
+    </button>
+    <button class="side-nav-button" id="current-tile-button">
+      Current tile
+    </button>
+  </div>
+  <div class="padding">
+    <div class="tab" id="search-slides-tab"></div>
+    <div class="tab" id="current-slide-tab">
+      <h3>Region: {{ name }}</h3>
+      <details>
+        <summary>Genomic Labels (Ground Truth)</summary>
+        <div style="padding-left: 10px">
+          {% for mutation in ground_truth %}
+          <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
+          {% endfor %}
+          <p>'1' represents mutant; '0' represents not mutant</p>
+        </div>
+      </details>
+    </div>
+    <div class="tab" id="current-tile-tab" class="tab">
+      <h3>Predictions:</h3>
+      {% for mutation in predictions.keys() %}
+      <div id="{{ mutation }}">{{ mutation }}</div>
+      {% endfor %}
+      <h3>Labels:</h3>
+      <ul id="label-list"></ul>
+    </div>
+  </div>
+</div>
 <div class="wrapper float-l">
-  <h1>Region: {{ name }}</h1>
-  <div id="viewer" class="float-l">
-    <img id="viewer-img" />
+  <div id="viewer" class="col">
     <div id="comment-box">
       <div class="float-l">
-        <ul id="label-list"></ul>
+        <div id="no-tile-selected">No tile selected</div>
         <form class="float-l" id="label-form">
           <input
             type="text"
@@ -34,16 +69,8 @@
         <button id="magnification-button">x 10</button>
       </div>
     </div>
-    <div id="ground-truth">
-      <details>
-        <summary>Genomic Labels (Ground Truth)</summary>
-        <div style="padding-left: 10px">
-          {% for mutation in ground_truth %}
-          <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
-          {% endfor %}
-          <p>'1' represents mutant; '0' represents not mutant</p>
-        </div>
-      </details>
+    <div class="image-box">
+      <img id="viewer-img" />
     </div>
   </div>
   <div class="col" id="graph">
@@ -85,19 +112,11 @@
           {% endfor %}
         </div>
       </div>
-
-      <div
-        style="margin-top: 1.3px; margin-left: 10px"
-        class="float-r margin-r"
-        id="current"
-      >
-        Current:
-      </div>
     </div>
     <div class="image-box float-l">
       <div class="image-interactive" id="image-interactive">
         <img
-          class="image"
+          class="heatmap-img"
           src="data:image/jpeg;base64,{{ slide_image }}"
           alt="Scan"
         />

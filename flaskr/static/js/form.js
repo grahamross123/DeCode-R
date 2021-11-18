@@ -48,7 +48,6 @@ function handleAddLabel(event) {
         document.getElementById("label-input").value = "";
         // Add the new label to the global variable labelsDict
         if (labelsDict[coords]) {
-          console.log(labelsDict[coords]);
           labelsDict[coords].push(label);
         } else {
           labelsDict[coords] = [label];
