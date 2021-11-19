@@ -1,6 +1,4 @@
-{% extends 'base.html' %} {% block header %}
-<meta property="name" content="{{ name }}" />
-{% endblock %} {% block content %}
+{% extends 'base.html' %} {% block content %}
 <script type="module">
   import { initHeatmap } from "{{ url_for('static', filename='js/heatmap.js') }}";
   import { initUi } from "{{ url_for('static', filename='js/ui.js') }}";
@@ -10,109 +8,65 @@
   initUi();
   initHeatmap(predictions, labelsDict, name);
 </script>
-<div class="top-nav">
-  <a href="/">Return to menu</a>
-</div>
-<div class="side-nav">
-  <div class="side-nav-tabs">
-    <button class="side-nav-button btn-active" id="search-slides-button">
-      Search slides
-    </button>
-    <button class="side-nav-button" id="current-slide-button">
-      Current slide
-    </button>
-    <button class="side-nav-button" id="current-tile-button">
-      Current tile
-    </button>
-  </div>
-  <div class="padding">
-    <div class="tab" id="search-slides-tab"></div>
-    <div class="tab" id="current-slide-tab">
-      <h3>Region: {{ name }}</h3>
-      <details>
-        <summary>Genomic Labels (Ground Truth)</summary>
-        <div style="padding-left: 10px">
-          {% for mutation in ground_truth %}
-          <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
-          {% endfor %}
-          <p>'1' represents mutant; '0' represents not mutant</p>
-        </div>
-      </details>
-    </div>
-    <div class="tab" id="current-tile-tab" class="tab">
-      <h3>Predictions:</h3>
-      {% for mutation in predictions.keys() %}
-      <div id="{{ mutation }}">{{ mutation }}</div>
-      {% endfor %}
-      <h3>Labels:</h3>
-      <ul id="label-list"></ul>
-    </div>
-  </div>
-</div>
+{% include 'sidebar.html' %}
 <div class="wrapper float-l">
   <div id="viewer" class="col">
-    <div id="comment-box">
-      <div class="float-l">
-        <div id="no-tile-selected">No tile selected</div>
-        <form class="float-l" id="label-form">
-          <input
-            type="text"
-            name="label"
-            placeholder="Add label"
-            id="label-input"
-          />
-          <input type="submit" value="Add" />
-        </form>
-        <div class="float-l" id="label-comment" style="margin-left: 10px"></div>
-      </div>
-      <div class="float-r">
-        <button id="magnification-button">x 10</button>
-      </div>
-    </div>
+    <button class="overlay-option" id="magnification-button">x 10</button>
     <div class="image-box">
       <img id="viewer-img" />
     </div>
   </div>
-  <div class="col" id="graph">
-    <div class="options padding">
-      <div class="dropdown float-l margin-l" data-control="checkbox-dropdown">
-        <label class="dropdown-label" id="heatmap-label">Select Heatmap</label>
-        <div class="dropdown-list" id="heatmap-radio-list">
-          <label class="dropdown-option">
-            <input
-              type="radio"
-              name="dropdown-group"
-              value="None"
-              checked="checked"
-            />
-            None
-          </label>
-          {% for mutation in predictions.keys() %}
-          <label class="dropdown-option">
-            <input type="radio" name="dropdown-group" value="{{ mutation }}" />
-            {{ mutation }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="dropdown float-l margin-l" data-control="checkbox-dropdown">
-        <label class="dropdown-label" id="labels-label">Select Labels</label>
-
-        <div class="dropdown-list" id="labels-checkbox-list">
-          <label class="dropdown-option">
-            <input type="checkbox" name="dropdown-group" id="select-all" />
-            Select all
-          </label>
-          <hr />
-          {% for label in all_labels %}
-          <label class="dropdown-option">
-            <input type="checkbox" name="dropdown-group" value="{{ label }}" />
-            {{ label }}
-          </label>
-          {% endfor %}
-        </div>
+  <div class="col" id="heatmap">
+    <div
+      class="overlay-option dropdown float-l margin-l"
+      data-control="checkbox-dropdown"
+    >
+      <label class="dropdown-label" id="heatmap-label">Select Heatmap</label>
+      <div class="dropdown-list" id="heatmap-radio-list">
+        <label class="dropdown-option">
+          <input
+            type="radio"
+            name="dropdown-group"
+            value="None"
+            checked="checked"
+          />
+          None
+        </label>
+        {% for mutation in predictions.keys() %}
+        <label class="dropdown-option">
+          <input type="radio" name="dropdown-group" value="{{ mutation }}" />
+          {{ mutation }}
+        </label>
+        {% endfor %}
       </div>
     </div>
+    <div
+      class="overlay-option dropdown"
+      data-control="checkbox-dropdown"
+      style="left: 180px"
+    >
+      <label class="dropdown-label" id="labels-label">Select Labels</label>
+      <div class="dropdown-list" id="labels-checkbox-list">
+        <label class="dropdown-option">
+          <input type="checkbox" name="dropdown-group" id="select-all" />
+          Select all
+        </label>
+        <hr />
+        {% for label in all_labels %}
+        <label class="dropdown-option">
+          <input type="checkbox" name="dropdown-group" value="{{ label }}" />
+          {{ label }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <button
+      class="overlay-option"
+      style="float: right; right: 5px"
+      id="reset-image-button"
+    >
+      Reset
+    </button>
     <div class="image-box float-l">
       <div class="image-interactive" id="image-interactive">
         <img

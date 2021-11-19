@@ -1,0 +1,45 @@
+<div class="side-nav">
+  <div class="side-nav-tabs">
+    <button class="side-nav-button btn-active" id="search-slides-button">
+      Search slides
+    </button>
+    <button class="side-nav-button" id="current-slide-button">
+      Current slide
+    </button>
+    <button class="side-nav-button" id="current-tile-button">
+      Current tile
+    </button>
+  </div>
+  <div class="padding">
+    <div class="tab" id="search-slides-tab"></div>
+    <div class="tab" id="current-slide-tab">
+      <h3>Region: {{ name }}</h3>
+      <details>
+        <summary>Genomic Labels (Ground Truth)</summary>
+        <div style="padding-left: 10px">
+          {% for mutation in ground_truth %}
+          <p>{{ mutation }}: {{ ground_truth[mutation] }}</p>
+          {% endfor %}
+          <p>'1' represents mutant; '0' represents not mutant</p>
+        </div>
+      </details>
+    </div>
+    <div class="tab" id="current-tile-tab" class="tab">
+      <h3>Predictions:</h3>
+      {% for mutation in predictions.keys() %}
+      <div id="{{ mutation }}">{{ mutation }}</div>
+      {% endfor %}
+      <h3>Labels:</h3>
+      <ul id="label-list"></ul>
+      <form class="float-l" id="label-form">
+        <input
+          type="text"
+          name="label"
+          placeholder="Add label"
+          id="label-input"
+        />
+        <input class="label-button float-r" type="submit" value="Add" />
+      </form>
+    </div>
+  </div>
+</div>

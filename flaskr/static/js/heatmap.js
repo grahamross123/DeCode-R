@@ -1,5 +1,5 @@
 import { panzoom } from "./panzoom.js";
-import { listenAddLabel, handleDeleteLabel } from "./form.js";
+import { listenAddLabel, addCommentBoxLabel } from "./form.js";
 import { prob2rgba, pad, pixel2coord } from "./util.js";
 
 var selectedLabels = [];
@@ -133,7 +133,7 @@ function toggleSelectAll(source) {
   }
 }
 
-// Listen for a change in the radio form and update the graph overlay accordingly
+// Listen for a change in the radio form and update the heatmap overlay accordingly
 function listenHeatmapDropdown(predictionsDict) {
   listenSelectAll();
   $(document).click(() => {
@@ -159,36 +159,14 @@ function listenHeatmapDropdown(predictionsDict) {
   });
 }
 
-// Removes a label from the comment box given the label name
-export function removeCommentBoxLabel(label) {
-  $("#label-list")
-    .find(`div:contains("${label}"):first`)
-    .closest("li")
-    .remove();
-}
-
-// Adds a label to the comment box given a label name and coordinates
-export function addCommentBoxLabel(label, divId) {
-  var labelItem = $(`<li class='label-item'></li>`);
-  var labelText = $(`<div class="label-text float-l">${label}</div>`);
-  var button = $(`<button class="float-l margin-l">Delete</button>`);
-  button.on("click", (event) => {
-    handleDeleteLabel(event, divId);
-  });
-  labelItem.append(labelText);
-  labelItem.append(button);
-  $("#label-list").append(labelItem);
-}
-
 function showCommentBox(divId) {
   $("#label-list").empty();
-  let comment = $("#label-comment").empty();
+  $("#label-comment").empty();
   if (labelsDict[divId]) {
     labelsDict[divId].forEach((label) => {
       addCommentBoxLabel(label, divId);
     });
   }
-  $("#no-tile-selected").css("display", "none");
   $("#label-form").css("display", "block");
 }
 
@@ -255,6 +233,39 @@ function listenDblClick(predictionsDict) {
   });
 }
 
+function listenResetImage() {
+  $("#reset-image-button").click(() => {
+    resetImage();
+  });
+}
+
+function resetImage() {
+  let img = $(".heatmap-img");
+  let imgInt = $(".image-interactive");
+  let box = $(".image-box");
+  if (img.height() > img.width()) {
+    img.css("height", "100%");
+    imgInt.css("height", "100%");
+    imgInt.css("left", box.width() / 2 - img.width() / 2 + "px");
+    imgInt.css("top", "0px");
+  } else {
+    img.css("width", "100%");
+    imgInt.css("width", "100%");
+    imgInt.css("top", box.height() / 2 - img.height() / 2 + "px");
+    imgInt.css("left", "0px");
+  }
+  imgInt.css("transform", "matrix(1, 0, 0, 1, 0, 0");
+}
+
+function addAllEventListeners(predictionsDict) {
+  listenHeatmapDropdown(predictionsDict);
+  listenShowLabels();
+  listenAddLabel();
+  listenDblClick(predictionsDict);
+  listenIncreaseMag();
+  listenResetImage();
+}
+
 export function initHeatmap(predictionsDict, _labelsDict, _name) {
   // Add template variables to global scope
   labelsDict = _labelsDict;
@@ -262,16 +273,8 @@ export function initHeatmap(predictionsDict, _labelsDict, _name) {
   panzoom("#image-interactive", {
     bound: "none",
   });
-  createEmptyOverlay(predictionsDict["BAP1"], "graph");
-  listenHeatmapDropdown(predictionsDict);
-  listenShowLabels();
-  listenAddLabel();
-  listenDblClick(predictionsDict);
-  listenIncreaseMag();
-  //$(".image-box").css("height", $(".image-interactive").height());
-  //$(".image-box").css("height", $("#viewer-img").width());
-
-  //$("#image-interactive").css("top", "200px");
+  createEmptyOverlay(predictionsDict["BAP1"]);
+  addAllEventListeners(predictionsDict);
   $(".image-box").css("height", $("#viewer-img").width());
-  $("#image-interactive").css("transform", "translate(0, 20%)");
+  resetImage();
 }

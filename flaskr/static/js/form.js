@@ -1,9 +1,4 @@
-import {
-  addCommentBoxLabel,
-  removeCommentBoxLabel,
-  labelsDict,
-  name,
-} from "./heatmap.js";
+import { labelsDict, name } from "./heatmap.js";
 
 export function listenAddLabel() {
   let form = document.getElementById("label-form");
@@ -23,9 +18,6 @@ function handleAddLabel(event) {
   var label = formData.get("label");
   // Add warning if no label text is in label field
   if (!formData.get("label")) {
-    let comment = $("#label-comment");
-    comment.css("color", "red");
-    comment.text("Please add a label");
     return;
   }
 
@@ -34,7 +26,6 @@ function handleAddLabel(event) {
     coords: coords,
     name: name,
   };
-
   fetch("/heatmap/add-label", {
     method: "POST",
     body: JSON.stringify(labelData),
@@ -57,14 +48,11 @@ function handleAddLabel(event) {
       }
     })
     .catch((err) => {
-      let comment = $("#label-comment");
-      comment.css("color", "red");
-      comment.text("Error adding label");
       console.error(err);
     });
 }
 
-export function handleDeleteLabel(event, divId) {
+function handleDeleteLabel(event, divId) {
   let label = $(event.target).siblings(".label-text").text();
   fetch("/heatmap/remove-label", {
     method: "POST",
@@ -84,4 +72,27 @@ export function handleDeleteLabel(event, divId) {
     .catch((err) => {
       console.error(err);
     });
+}
+
+// Removes a label from the comment box given the label name
+function removeCommentBoxLabel(label) {
+  $("#label-list")
+    .find(`div:contains("${label}"):first`)
+    .closest("li")
+    .remove();
+}
+
+// Adds a label to the comment box given a label name and coordinates
+export function addCommentBoxLabel(label, divId) {
+  var labelItem = $(`<li class='label-item'></li>`);
+  var labelText = $(`<div class="label-text float-l">${label}</div>`);
+  var button = $(
+    `<button class="label-button float-r margin-l">Delete</button>`
+  );
+  button.on("click", (event) => {
+    handleDeleteLabel(event, divId);
+  });
+  labelItem.append(labelText);
+  labelItem.append(button);
+  $("#label-list").append(labelItem);
 }
