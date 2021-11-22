@@ -2,8 +2,11 @@ import numpy as np
 import omero
 from omero.gateway import BlitzGateway
 import os
+import io
+import base64
+import matplotlib.pyplot as plt
 
-from util import get_numpy_type, decrypt_credentials
+from flaskr.util import get_numpy_type, decrypt_credentials
 
 
 class Omero:
@@ -48,6 +51,58 @@ class Omero:
         project = self.conn.getObject('Project', project_id)
         dataset = project.findChildByName(dataset_name)
         return dataset
+
+    def load_images(self, dataset_id):
+        dataset = self.conn.getObject("Dataset", dataset_id)
+        images = []
+        if dataset == None:
+            print("No image found / no permission to acces this dataset: ", dataset_id)
+            return None
+        else:
+            for image in dataset.listChildren():
+                images.append(image)
+            if len(images) == 0:
+                return None
+        if images != []:
+            for image in images:
+                print("---- Processing image", image.id)
+        return dataset_id, images
+    
+    def open_image(self, image_id):
+        return self.conn.getObject("Image", image_id)
+
+
+    def extract_thumbnail(self, image_object, size):
+        # save as jpg image file
+        thumb_bytes = image_object.getThumbnail(size)
+        return thumb_bytes
+
+    def get_segment(self, image_object, fx, fy, fw, fh):
+        # Obtain segment of a given image given fraction of image x, y, w, h
+        iw, ih = image_object.getSizeX(), image_object.getSizeY()
+        sx = int(fx * iw)
+        sy = int(fy * ih)
+        sw = int(fw * iw)
+        sh = int(fh * ih)
+        return self.get_tiles(image_object, [(sx, sy, sw, sh)])[0]
+        
+
+    def get_tiles(self, image_object, xywh_list):
+        # get list of tiles, based on list of tile coordinates
+        tiles = []
+        nchannels = image_object.getSizeC()
+        pixels = image_object.getPrimaryPixels()
+        dtype = get_numpy_type(pixels.getPixelsType().getValue())
+        for xywh in xywh_list:
+            _, _, w, h = xywh
+            tile_coords = [(0, c, 0, xywh) for c in range(nchannels)]
+            image_gen = pixels.getTiles(tile_coords)
+            tile_image = np.zeros((h, w, nchannels), dtype=dtype)
+            # merge channels
+            for c, image in enumerate(image_gen):
+                tile_image[:, :, c] = image
+            tiles.append(tile_image)
+        return tiles
 
     def get_slide_image(self, image_object, pixels):
         w, h, zs, cs, ts = self.get_size(image_object)
@@ -139,13 +194,13 @@ if __name__ == '__main__':
     usr, pwd = decrypt_credentials(pri_key_file, credentials_filename)
     omero = Omero(host, usr, pwd)
     omero.connect()
-
     omero.switch_user_group()
 
-    project_id = 12345
-    image_objects = omero.get_project_images(project_id)
-    for image_object in image_objects:
-        print_omero_object(image_object)
-        print(omero.get_size(image_object))
-
+    project_id = 355
+    image_id = 12806
+    images = omero.get_project_images(project_id)
+    for image in images:
+        print(image.getId())
+        print(image.getName())
+        break
     omero.disconnect()

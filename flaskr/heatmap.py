@@ -4,6 +4,9 @@ import base64
 import io
 import csv
 from flaskr.db import get_db
+from flaskr.Omero import Omero
+from flaskr.util import decrypt_credentials
+import os
 
 
 bp = Blueprint("heatmap", __name__, url_prefix="/heatmap")
@@ -12,7 +15,21 @@ PRED_PATH_BAP1 = './flaskr/static/predictions_BAP1.tsv'
 PRED_PATH_PBRM1 = './flaskr/static/predictions_PBRM1.tsv'
 GROUND_TRUTH = {"PBRM1": 1, "BAP1": 0}
 REGION_NAME = "Region Name"
+OMERO_IMG_ID = 12806
+PROJECT_ID = 355
 
+
+def omero_init():
+  host = 'ssl://omero-prod.camp.thecrick.org'
+  pri_key_file = os.path.expanduser('~/omero.pri.key')
+  credentials_filename = '.omero_credentials'
+  usr, pwd = decrypt_credentials(pri_key_file, credentials_filename)
+  omero = Omero(host, usr, pwd)
+  omero.connect()
+  omero.switch_user_group()
+  return omero
+
+omero = omero_init()
 
 @bp.route('', strict_slashes=False)
 def tiles():
@@ -35,7 +52,6 @@ def tiles():
       WHERE slides.slide_name = ?
       """, (REGION_NAME,))
     tile_labels = tiles_query.fetchall()
-
     for tile in tile_labels:
       if tile['coords'] in labels:
         labels[tile['coords']].append(tile['label'])
@@ -46,12 +62,14 @@ def tiles():
   return render_template(
     "heatmap.html", 
     predictions=predictions, 
-    slide_image=load_slide(IMG_PATH),
+    slide_image=load_slide_omero(omero, OMERO_IMG_ID),
     ground_truth=GROUND_TRUTH,
     name=REGION_NAME,
     labels=labels,
-    all_labels=all_labels
+    all_labels=all_labels,
+    slides=get_slides()
     )
+
     
 @bp.route('/remove-label', methods=["POST"])
 def remove_label():
@@ -135,13 +153,42 @@ def add_label():
 
   return Response(status=200)
 
+
 @bp.route('/get-tile')
 def get_tile():
+  image = omero.open_image(OMERO_IMG_ID)
   name = request.args.get('name')
   tile_id = request.args.get('tileId')
-  mag = request.args.get('mag')
-  # TODO: Use Omero API to retreive given tile at the selected magnification
-  return jsonify(load_slide(IMG_PATH))
+  
+
+  predictions = read_predictions(PRED_PATH_BAP1)
+  nrows = len(predictions)
+  ncols = len(predictions[0])
+
+  
+  N_TILES = 3
+  # coords = (int(tile_id[:-4]) - ntiles//2, int(tile_id[-4:]) - ntiles//2)
+  fx = (int(tile_id[:-4]) - N_TILES // 2) / ncols
+  fy = (int(tile_id[-4:]) - N_TILES // 2) / nrows
+  fw = N_TILES / ncols
+  fh = N_TILES/ nrows
+  tile = omero.get_segment(image, fx, fy, fw, fh)
+  mag = max(nrows, ncols) / N_TILES
+  pil_img = Image.fromarray(tile)
+  buff = io.BytesIO()
+  pil_img.save(buff, format="JPEG")
+
+  image_string = base64.b64encode(buff.getvalue()).decode("utf-8")
+  return jsonify({"mag": mag, "data": image_string})
+
+
+def get_slides():
+  slides = []
+  image_objects = omero.get_project_images(PROJECT_ID)
+  for image_object in image_objects:
+    slides.append({"name": image_object.getName(), "id": image_object.getId()})
+  return slides
+
 
 def create_all_predictions():
   predictions = {}
@@ -156,6 +203,16 @@ def load_slide(path):
   img.save(data, "JPEG")
   encoded_img_data = base64.b64encode(data.getvalue())
   return encoded_img_data.decode("utf-8")
+
+
+def load_slide_omero(omero, image_id):
+    image = omero.open_image(image_id)
+    thumb_x = image.getSizeX() / 20
+    thumb_y = image.getSizeY() / 20
+    image_bytes = omero.extract_thumbnail(image, (thumb_x, thumb_y))
+    data = io.BytesIO(image_bytes)
+    encoded_img_data = base64.b64encode(data.getvalue())
+    return encoded_img_data.decode("utf-8")
 
 
 def read_predictions(path):

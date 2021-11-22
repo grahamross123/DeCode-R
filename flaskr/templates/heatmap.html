@@ -11,14 +11,15 @@
 {% include 'sidebar.html' %}
 <div class="wrapper float-l">
   <div id="viewer" class="col">
-    <button class="overlay-option" id="magnification-button">x 10</button>
-    <div class="image-box">
+    <button class="overlay-option-top" id="magnification-button">x 10</button>
+    <div id="viewer-img-box" class="image-box">
       <img id="viewer-img" />
+      <div id="viewer-tile-highlight"></div>
     </div>
   </div>
   <div class="col" id="heatmap">
     <div
-      class="overlay-option dropdown float-l margin-l"
+      class="overlay-option-top dropdown float-l margin-l"
       data-control="checkbox-dropdown"
     >
       <label class="dropdown-label" id="heatmap-label">Select Heatmap</label>
@@ -41,7 +42,7 @@
       </div>
     </div>
     <div
-      class="overlay-option dropdown"
+      class="overlay-option-top dropdown"
       data-control="checkbox-dropdown"
       style="left: 180px"
     >
@@ -61,12 +62,19 @@
       </div>
     </div>
     <button
-      class="overlay-option"
+      class="overlay-option-top"
       style="float: right; right: 5px"
       id="reset-image-button"
     >
       Reset
     </button>
+    <div
+      id="magnification-display"
+      class="overlay-option-bottom"
+      style="float: left; bottom: 5px; left: 5px"
+    >
+      Magnification: 1x
+    </div>
     <div class="image-box float-l">
       <div class="image-interactive" id="image-interactive">
         <img

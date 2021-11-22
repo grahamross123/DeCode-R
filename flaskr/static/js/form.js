@@ -20,7 +20,6 @@ function handleAddLabel(event) {
   if (!formData.get("label")) {
     return;
   }
-
   let labelData = {
     label: label,
     coords: coords,
@@ -44,7 +43,7 @@ function handleAddLabel(event) {
           labelsDict[coords] = [label];
         }
         // Add the new label to the current list of labels
-        addCommentBoxLabel(label, coords);
+        addLabelsText(label, coords);
       }
     })
     .catch((err) => {
@@ -61,7 +60,7 @@ function handleDeleteLabel(event, divId) {
   })
     .then((res) => {
       if (res.status === 200) {
-        removeCommentBoxLabel(label);
+        removeLabelsText(label);
         labelsDict[divId].pop();
         // Delete the key in the dict if there are no labels
         if (labelsDict[divId].length === 0) {
@@ -75,7 +74,7 @@ function handleDeleteLabel(event, divId) {
 }
 
 // Removes a label from the comment box given the label name
-function removeCommentBoxLabel(label) {
+function removeLabelsText(label) {
   $("#label-list")
     .find(`div:contains("${label}"):first`)
     .closest("li")
@@ -83,7 +82,7 @@ function removeCommentBoxLabel(label) {
 }
 
 // Adds a label to the comment box given a label name and coordinates
-export function addCommentBoxLabel(label, divId) {
+export function addLabelsText(label, divId) {
   var labelItem = $(`<li class='label-item'></li>`);
   var labelText = $(`<div class="label-text float-l">${label}</div>`);
   var button = $(

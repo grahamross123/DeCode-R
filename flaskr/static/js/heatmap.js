@@ -1,11 +1,12 @@
 import { panzoom } from "./panzoom.js";
-import { listenAddLabel, addCommentBoxLabel } from "./form.js";
+import { listenAddLabel, addLabelsText } from "./form.js";
 import { prob2rgba, pad, pixel2coord } from "./util.js";
 
 var selectedLabels = [];
 export var labelsDict;
 export var name;
-var magnification;
+var magnification = 10;
+var tile_mag; // Magnification of tile image relative to slide view before transform
 
 // Create an array of empty divs corresponding to the size of the predictions array
 function createEmptyOverlay(predictions) {
@@ -20,7 +21,7 @@ function createEmptyOverlay(predictions) {
     for (let j = 0; j < predictions[i].length; j++) {
       let pred = document.createElement("div");
       pred.classList.add("tile");
-      pred.id = i + pad(j, 4); // Add coordinates to the id
+      pred.id = pad(j, 4) + pad(i, 4); // Add coordinates to the id
       pred.style.width = widthPct + "%";
       pred.style.height = "100%";
       row.appendChild(pred);
@@ -83,6 +84,7 @@ function listenIncreaseMag() {
       event.target.innerText = "x 10";
       magnification = 10;
     }
+    if (tile_mag) updateTileZoom();
   });
 }
 
@@ -159,12 +161,12 @@ function listenHeatmapDropdown(predictionsDict) {
   });
 }
 
-function showCommentBox(divId) {
+function showLabelsText(divId) {
   $("#label-list").empty();
   $("#label-comment").empty();
   if (labelsDict[divId]) {
     labelsDict[divId].forEach((label) => {
-      addCommentBoxLabel(label, divId);
+      addLabelsText(label, divId);
     });
   }
   $("#label-form").css("display", "block");
@@ -199,12 +201,27 @@ function updateTileView(divId) {
     method: "GET",
   })
     .then((res) => res.json())
-    .then((data) => {
+    .then((image) => {
       document.getElementById(
         "viewer-img"
-      ).src = `data:image/jpeg;base64,${data}`;
+      ).src = `data:image/jpeg;base64,${image["data"]}`;
+      tile_mag = image["mag"];
+      updateTileZoom();
+      $("#viewer-tile-highlight").css("display", "block");
     })
-    .catch((err) => {});
+
+    .catch((err) => {
+      console.error(err);
+    });
+}
+
+function updateTileZoom() {
+  $("#viewer-img-box").css(
+    "transform",
+    `matrix(${magnification / tile_mag}, 0, 0, ${
+      magnification / tile_mag
+    }, 0, 0)`
+  );
 }
 
 // Handles double clicking on the interactive image
@@ -220,10 +237,10 @@ function handleDblClick(event, predictionsDict) {
     predictionsDict["BAP1"][0].length,
     predictionsDict["BAP1"].length
   );
-  let divId = coords[1] + pad(coords[0], 4);
+  let divId = pad(coords[0], 4) + pad(coords[1], 4);
   highlightDiv(divId);
   updateTileView(divId, 10);
-  showCommentBox(divId);
+  showLabelsText(divId);
   updateSelectedProb(coords, predictionsDict);
 }
 
@@ -236,6 +253,7 @@ function listenDblClick(predictionsDict) {
 function listenResetImage() {
   $("#reset-image-button").click(() => {
     resetImage();
+    setZoomIndicator();
   });
 }
 
@@ -257,6 +275,23 @@ function resetImage() {
   imgInt.css("transform", "matrix(1, 0, 0, 1, 0, 0");
 }
 
+function listenScroll() {
+  $(document).on("mousewheel", setZoomIndicator);
+}
+
+function setZoomIndicator() {
+  let obj = $(".image-interactive");
+  let transformMatrix =
+    obj.css("-webkit-transform") ||
+    obj.css("-moz-transform") ||
+    obj.css("-ms-transform") ||
+    obj.css("-o-transform") ||
+    obj.css("transform");
+  let matrix = transformMatrix.replace(/[^0-9\-.,]/g, "").split(",");
+  let zoom = Math.round(matrix[0] * 100) / 100;
+  $("#magnification-display").text("Magnification: " + zoom + "x");
+}
+
 function addAllEventListeners(predictionsDict) {
   listenHeatmapDropdown(predictionsDict);
   listenShowLabels();
@@ -264,6 +299,7 @@ function addAllEventListeners(predictionsDict) {
   listenDblClick(predictionsDict);
   listenIncreaseMag();
   listenResetImage();
+  listenScroll();
 }
 
 export function initHeatmap(predictionsDict, _labelsDict, _name) {
@@ -272,6 +308,7 @@ export function initHeatmap(predictionsDict, _labelsDict, _name) {
   name = _name;
   panzoom("#image-interactive", {
     bound: "none",
+    scale_max: 40,
   });
   createEmptyOverlay(predictionsDict["BAP1"]);
   addAllEventListeners(predictionsDict);

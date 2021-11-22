@@ -3,7 +3,7 @@ function handleSearchSlidesButton() {
     $(".btn-active").removeClass("btn-active");
     $(".tab-active").removeClass("tab-active");
     event.target.classList.add("btn-active");
-    $(".search-slides-tab").addClass("tab-active");
+    $("#search-slides-tab").addClass("tab-active");
   });
 }
 function handleCurrentSlideButton() {

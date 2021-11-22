@@ -5,19 +5,19 @@ DROP TABLE IF EXISTS tile_labels;
 
 CREATE TABLE slides (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  slide_name UNIQUE TEXT
+  slide_name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE tiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slide_id INTEGER NOT NULL,
-  coords INTEGER NOT NULL,
+  coords TEXT NOT NULL,
   FOREIGN KEY (slide_id) REFERENCES slides (id)
 );
 
 CREATE TABLE labels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  label UNIQUE TEXT
+  label TEXT UNIQUE
 );
 
 CREATE TABLE tile_labels (
