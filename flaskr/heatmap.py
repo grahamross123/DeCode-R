@@ -67,7 +67,8 @@ def tiles():
     name=REGION_NAME,
     labels=labels,
     all_labels=all_labels,
-    slides=get_slides()
+    # slides=get_slides()
+    slides=[]
     )
 
     
