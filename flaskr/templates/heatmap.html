@@ -1,13 +1,7 @@
 {% extends 'base.html' %} {% block content %}
 <script type="module">
-  import { Heatmap } from "{{ url_for('static', filename='js/heatmap.js') }}";
-  import { initUi } from "{{ url_for('static', filename='js/ui.js') }}";
-  var labelsDict = JSON.parse(`{{ labels | tojson | safe }}`);
-  var predictions = JSON.parse(`{{ predictions | tojson | safe }}`);
-  var imageData = JSON.parse(`{{ slide_image | tojson | safe }}`);
-  var name = "{{ name }}";
-  let heatmap = new Heatmap(predictions, labelsDict, name, imageData);
-  initUi();
+  import { initAll } from "{{ url_for('static', filename='js/init.js') }}";
+  initAll();
 </script>
 {% include 'sidebar.html' %}
 <div class="wrapper float-l">
@@ -34,12 +28,6 @@
           />
           None
         </label>
-        {% for mutation in predictions.keys() %}
-        <label class="dropdown-option">
-          <input type="radio" name="dropdown-group" value="{{ mutation }}" />
-          {{ mutation }}
-        </label>
-        {% endfor %}
       </div>
     </div>
     <div
@@ -78,7 +66,11 @@
     </div>
     <div class="image-box float-l">
       <div class="image-interactive" id="image-interactive">
-        <img class="heatmap-img" alt="Scan" />
+        <img
+          class="heatmap-img"
+          alt="Scan"
+          onerror="this.style.display='none'"
+        />
         <div class="predictions"></div>
       </div>
     </div>

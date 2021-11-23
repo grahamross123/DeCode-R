@@ -1,28 +1,24 @@
 import { panzoom } from "./panzoom.js";
 import { prob2rgba, pad, pixel2coord } from "./util.js";
+import { showLabelsText, addSlideInfo } from "./ui.js";
 
 export class Heatmap {
-  constructor(predictionsDict, labelsDict, name, imageData) {
+  constructor(tileView) {
     this.selectedLabels = [];
-    this.labelsDict = labelsDict;
-    this.name = name;
-    this.magnification = 10;
-    this.predictionsDict = predictionsDict;
-    this.imageData = imageData;
-    this.tile_mag; // Magnification of tile image relative to slide view before transform
-    // Add template variables to global scope
+    this.tileView = tileView;
+    this.addEventListeners();
     panzoom("#image-interactive", {
       bound: "none",
       scale_max: 40,
     });
-    this.createEmptyOverlay();
-    this.addAllEventListeners();
     $(".image-box").css("height", $("#viewer-img").width());
     this.resetImage();
   }
 
   // Create an array of empty divs corresponding to the size of the predictions array
   createEmptyOverlay() {
+    // Remove original predictions array
+    $(".predictions").empty();
     let predictionsArray = Object.values(this.predictionsDict)[0];
     const heightPct = 100 / predictionsArray.length;
     const widthPct = 100 / predictionsArray[0].length;
@@ -42,101 +38,6 @@ export class Heatmap {
       }
       predDiv.append(row);
     }
-  }
-
-  listenAddLabel() {
-    let form = document.getElementById("label-form");
-    form.addEventListener("submit", (event) => {
-      this.handleAddLabel(event);
-    });
-  }
-
-  handleAddLabel(event) {
-    // TODO: adding a unique label doesn't update the select labels dropdown
-    // i.e. need to refresh page to see it
-
-    event.preventDefault(); // prevent page from refreshing
-    const formData = new FormData(event.target); // grab the data inside the form fields
-    if (!$(".highlight")[0]) return; // If no cell is highlighted, don't post anything
-    var coords = $(".highlight")[0].id;
-    var label = formData.get("label");
-    // Add warning if no label text is in label field
-    if (!formData.get("label")) {
-      return;
-    }
-    let labelData = {
-      label: label,
-      coords: coords,
-      name: this.name,
-    };
-    fetch("/heatmap/add-label", {
-      method: "POST",
-      body: JSON.stringify(labelData),
-      headers: new Headers({
-        "content-type": "application/json",
-      }),
-    })
-      .then((res) => {
-        if (res.status === 200) {
-          // Clear the label input
-          document.getElementById("label-input").value = "";
-          // Add the new label to the global variable labelsDict
-          if (this.labelsDict[coords]) {
-            this.labelsDict[coords].push(label);
-          } else {
-            this.labelsDict[coords] = [label];
-          }
-          // Add the new label to the current list of labels
-          this.addLabelsText(label, coords);
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  }
-
-  // Adds a label to the comment box given a label name and coordinates
-  addLabelsText(label, divId) {
-    var labelItem = $(`<li class='label-item'></li>`);
-    var labelText = $(`<div class="label-text float-l">${label}</div>`);
-    var button = $(
-      `<button class="label-button float-r margin-l">Delete</button>`
-    );
-    button.on("click", (event) => {
-      this.handleDeleteLabel(event, divId);
-    });
-    labelItem.append(labelText);
-    labelItem.append(button);
-    $("#label-list").append(labelItem);
-  }
-
-  handleDeleteLabel(event, divId) {
-    let label = $(event.target).siblings(".label-text").text();
-    fetch("/heatmap/remove-label", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: label, coords: divId, name: this.name }),
-    })
-      .then((res) => {
-        if (res.status === 200) {
-          this.removeLabelsText(label);
-          this.labelsDict[divId].pop();
-          // Delete the key in the dict if there are no labels
-          if (this.labelsDict[divId].length === 0) {
-            delete this.labelsDict[divId];
-          }
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  }
-
-  removeLabelsText(label) {
-    $("#label-list")
-      .find(`div:contains("${label}"):first`)
-      .closest("li")
-      .remove();
   }
 
   // Colour the prediction divs according to the prediction array
@@ -178,23 +79,6 @@ export class Heatmap {
 
   hideLabels() {
     $("#image-interactive").find(".label").removeClass("label");
-  }
-
-  listenIncreaseMag() {
-    $("#magnification-button").click((event) => {
-      // TODO: After increasing magnification, reload the image
-      if (event.target.innerText === "x 10") {
-        event.target.innerText = "x 20";
-        this.magnification = 20;
-      } else if (event.target.innerText === "x 20") {
-        event.target.innerText = "x 40";
-        this.magnification = 40;
-      } else if (event.target.innerText === "x 40") {
-        event.target.innerText = "x 10";
-        this.magnification = 10;
-      }
-      if (this.tile_mag) this.updateTileZoom();
-    });
   }
 
   listenShowLabels() {
@@ -270,15 +154,24 @@ export class Heatmap {
     });
   }
 
-  showLabelsText(divId) {
-    $("#label-list").empty();
-    $("#label-comment").empty();
-    if (this.labelsDict[divId]) {
-      this.labelsDict[divId].forEach((label) => {
-        this.addLabelsText(label, divId);
-      });
+  // Add heatmaps to the select heatmaps list
+  updateHeatmapsList() {
+    let list = $("#heatmap-radio-list");
+    list.empty();
+    list.append(`
+    <label class="dropdown-option">
+      <input type="radio" name="dropdown-group" value="None" checked="checked"/>
+      None
+    </label>
+    `);
+    for (const mutation in this.predictionsDict) {
+      list.append(`
+      <label class="dropdown-option">
+        <input type="radio" name="dropdown-group" value="${mutation}" />
+        ${mutation}
+      </label>
+      `);
     }
-    $("#label-form").css("display", "block");
   }
 
   highlightDiv(divId) {
@@ -300,39 +193,6 @@ export class Heatmap {
     }
   }
 
-  updateTileView(divId) {
-    const params = new URLSearchParams({
-      name: this.name,
-      tileId: divId,
-      mag: this.magnification,
-    });
-    fetch(`/heatmap/get-tile?${params.toString()}`, {
-      method: "GET",
-    })
-      .then((res) => res.json())
-      .then((image) => {
-        document.getElementById(
-          "viewer-img"
-        ).src = `data:image/jpeg;base64,${image["data"]}`;
-        this.tile_mag = image["mag"];
-        this.updateTileZoom();
-        $("#viewer-tile-highlight").css("display", "block");
-      })
-
-      .catch((err) => {
-        console.error(err);
-      });
-  }
-
-  updateTileZoom() {
-    $("#viewer-img-box").css(
-      "transform",
-      `matrix(${this.magnification / this.tile_mag}, 0, 0, ${
-        this.magnification / this.tile_mag
-      }, 0, 0)`
-    );
-  }
-
   // Handles double clicking on the interactive image
   handleDblClick(event) {
     this.hideLabels();
@@ -348,9 +208,22 @@ export class Heatmap {
     );
     let divId = pad(coords[0], 4) + pad(coords[1], 4);
     this.highlightDiv(divId);
-    this.updateTileView(divId, 10);
-    this.showLabelsText(divId);
+    this.tileView.updateTileView(divId, this.slideId, this.name);
+    this.addPredictionValues(coords);
+    showLabelsText(divId, this);
     this.updateSelectedProb(coords);
+  }
+
+  addPredictionValues(coords) {
+    let predictionValues = $("#prediction-values");
+    predictionValues.empty();
+    for (const mutation in this.predictionsDict) {
+      predictionValues.append(`
+      <div id="${mutation}">${mutation}: ${
+        this.predictionsDict[mutation][coords[1]][coords[0]]
+      }</div>
+      `);
+    }
   }
 
   listenDblClick() {
@@ -401,21 +274,59 @@ export class Heatmap {
     $("#magnification-display").text("Magnification: " + zoom + "x");
   }
 
-  addAllEventListeners() {
+  addEventListeners() {
     this.listenHeatmapDropdown();
     this.listenShowLabels();
-    this.listenAddLabel();
     this.listenDblClick();
-    this.listenIncreaseMag();
     this.listenResetImage();
     this.listenScroll();
-    $("#load-image").click(() => {
-      this.loadImage(this.imageData);
-      this.resetImage();
-    });
+    this.listenClickSlideButton();
   }
 
-  loadImage(imageData) {
-    $(".heatmap-img").attr("src", "data:image/jpeg;base64," + imageData);
+  loadNewSlide(slideId) {
+    this.slideId = slideId;
+    const params = new URLSearchParams({
+      slideId: this.slideId,
+    });
+    fetch(`/heatmap/get-slide?${params.toString()}`, {
+      method: "GET",
+    })
+      .then((res) => res.json())
+      .then((slideData) => {
+        this.loadSlideData(slideData);
+      })
+      .catch((err) => {
+        console.error(err);
+        return {};
+      });
+  }
+
+  listenClickSlideButton() {
+    $("#search-slides-list")
+      .find("li")
+      .click((event) => {
+        this.loadNewSlide(event.target.id);
+      });
+  }
+
+  updateImage(imageData) {
+    let heatmapImg = $(".heatmap-img");
+    heatmapImg.css("visibility", "visible");
+    heatmapImg.attr("src", "data:image/jpeg;base64," + imageData);
+  }
+
+  loadSlideData(slideData) {
+    this.updateImage(slideData["image"]);
+    this.tileView.removeTileView();
+    this.selectedLabels = [];
+    this.labelsDict = slideData["labels"];
+    this.name = slideData["name"];
+    this.predictionsDict = slideData["predictions"];
+    this.updateHeatmapsList();
+    this.createEmptyOverlay();
+    this.showLabels();
+    this.resetImage();
+    this.showLabels();
+    addSlideInfo(this.name);
   }
 }

@@ -15,8 +15,9 @@ PRED_PATH_BAP1 = './flaskr/static/predictions_BAP1.tsv'
 PRED_PATH_PBRM1 = './flaskr/static/predictions_PBRM1.tsv'
 GROUND_TRUTH = {"PBRM1": 1, "BAP1": 0}
 REGION_NAME = "Region Name"
-OMERO_IMG_ID = 12806
+
 PROJECT_ID = 355
+PREDICTION_FOLDER = "/Volumes/ddt/working/DeepHiPa/resources/models/omero0_inception_v3_lr0.1_mag20_patch299x299/epoch_50_1634309293/maps/"
 
 
 def omero_init():
@@ -33,42 +34,10 @@ omero = omero_init()
 
 @bp.route('', strict_slashes=False)
 def tiles():
-  predictions = create_all_predictions()
-  labels = {}
-  all_labels = []
-  # Obtain all labels for the current slide
-  try:
-    db = get_db()
-    # Obtain all labels in the labels table
-    labels_query = db.execute("SELECT label FROM labels")
-    for label in labels_query.fetchall():
-      all_labels.append(label["label"])
-    # Obtain all tiles on the current slide which have a label
-    tiles_query = db.execute("""
-      SELECT tiles.coords, labels.label FROM tile_labels 
-      JOIN labels ON labels.id = tile_labels.label_id
-      JOIN tiles ON tiles.id = tile_labels.tile_id
-      JOIN slides ON tiles.slide_id = slides.id
-      WHERE slides.slide_name = ?
-      """, (REGION_NAME,))
-    tile_labels = tiles_query.fetchall()
-    for tile in tile_labels:
-      if tile['coords'] in labels:
-        labels[tile['coords']].append(tile['label'])
-      else:
-        labels[tile["coords"]] = [tile["label"]]
-  except Exception as e:
-    print(e)
   return render_template(
     "heatmap.html", 
-    predictions=predictions, 
-    slide_image=load_slide_omero(omero, OMERO_IMG_ID),
-    ground_truth=GROUND_TRUTH,
-    name=REGION_NAME,
-    labels=labels,
-    all_labels=all_labels,
-    # slides=get_slides()
-    slides=[]
+    all_labels=get_all_labels(),
+    slides=get_slide_names()
     )
 
     
@@ -106,67 +75,48 @@ def add_label():
     return Response(status=400)
 
   try:
-    # Check if slide is already added
-    slides = db.execute(
-            "SELECT * FROM slides WHERE slide_name=?",
-            (req['name'],),
-            )
-    slide = slides.fetchone()
+    db.execute("INSERT INTO slides (slide_name) VALUES (?)", (req['name'],))
+    db.commit()
+    print("Added slide")
+  except db.IntegrityError as e:
+    print("Slide already added")
 
-    # Add slide if not already in slides table
-    if not slide:
-      db.execute("INSERT INTO slides (slide_name) VALUES (?)", (req['name'],))
-      db.commit()
+  slide_id = db.execute("SELECT * FROM slides WHERE slide_name=?", (req['name'],))
+  slide_id = slide_id.fetchone()["id"]
 
-    # Check if tile is already added
-    else:
-      slide_id = slide["id"]
-      tiles = db.execute("SELECT * FROM tiles WHERE slide_id=? AND coords=?", (slide_id, req['coords']))
-      tile = tiles.fetchone()
-      # If tile doesn't exist in db, add it with new label
-      if not tile:
-        db.execute(
+  try:
+    db.execute(
           "INSERT INTO tiles (slide_id, coords) VALUES (?, ?)", 
           (slide_id, req['coords'])
           )
-        db.commit()
-    
-    # Check if label exists
-    labels = db.execute("SELECT * FROM labels WHERE label=?", (req['label'],))
-    label = labels.fetchone()
-    if not label:
-      db.execute("INSERT INTO labels (label) VALUES (?)", (req['label'],))
-      db.commit()
-
-    tile = db.execute("SELECT id FROM tiles WHERE slide_id=(SELECT id FROM slides WHERE slide_name=?) AND coords=?", (req['name'], req['coords']))
-    tile_id = tile.fetchone()['id']
-    label = db.execute("SELECT id FROM labels WHERE label=?", (req['label'],))
-    label_id = label.fetchone()['id']
-    # Add the new label
-    db.execute(
-      "INSERT INTO tile_labels (tile_id, label_id) VALUES (?, ?)",
-      (tile_id, label_id))
     db.commit()
-
+    print("Tile added")
   except db.IntegrityError as e:
-    print(e)
-    return Response(status=500)
+    print("Tile already added")
+
+  label_id = db.execute("SELECT id FROM labels WHERE label=?", (req['label'],))
+  label_id = label_id.fetchone()['id']
+
+  tile_id = db.execute("SELECT id FROM tiles WHERE slide_id=(SELECT id FROM slides WHERE slide_name=?) AND coords=?", (req['name'], req['coords']))
+  tile_id = tile_id.fetchone()['id']
+
+  db.execute(
+    "INSERT INTO tile_labels (tile_id, label_id) VALUES (?, ?)",
+    (tile_id, label_id))
+  db.commit()
 
   return Response(status=200)
 
 
 @bp.route('/get-tile')
 def get_tile():
-  image = omero.open_image(OMERO_IMG_ID)
-  name = request.args.get('name')
+  slide_id = request.args.get('slideId')
   tile_id = request.args.get('tileId')
-  
-
-  predictions = read_predictions(PRED_PATH_BAP1)
+  slide_name = request.args.get('slideName')
+  image = omero.open_image(slide_id)
+  predictions = get_single_prediction(slide_name)
   nrows = len(predictions)
   ncols = len(predictions[0])
-
-  
   N_TILES = 3
   # coords = (int(tile_id[:-4]) - ntiles//2, int(tile_id[-4:]) - ntiles//2)
   fx = (int(tile_id[:-4]) - N_TILES // 2) / ncols
@@ -183,19 +133,48 @@ def get_tile():
   return jsonify({"mag": mag, "data": image_string})
 
 
-def get_slides():
+@bp.route('/get-slide')
+def get_slide():
+  slide_id = request.args.get("slideId")
+  image_obj = omero.open_image(slide_id)
+  slide_image = load_slide_omero(image_obj)
+  slide_name = image_obj.getName()
+  return jsonify({
+    "image": slide_image, 
+    "predictions": get_predictions(slide_name), 
+    "ground-truth": GROUND_TRUTH,
+    "name": slide_name,
+    "labels": get_labels(slide_name),
+    })
+
+def get_single_prediction(slide_name):
+  for filename in os.listdir(PREDICTION_FOLDER):
+    if not "tsv" in filename:
+      continue
+    if slide_name in filename:
+      return read_predictions(PREDICTION_FOLDER + filename)
+
+def get_predictions(slide_name):
+  predictions_dict = {}
+  for filename in os.listdir(PREDICTION_FOLDER):
+    if not "tsv" in filename:
+      continue
+    if slide_name in filename:
+      for mutation in ["BAP1", "PBRM1"]:
+        if mutation in filename:
+          predictions_dict[mutation] = read_predictions(PREDICTION_FOLDER + filename)
+  return predictions_dict
+
+def get_slide_names():
   slides = []
   image_objects = omero.get_project_images(PROJECT_ID)
   for image_object in image_objects:
-    slides.append({"name": image_object.getName(), "id": image_object.getId()})
+    image_name = image_object.getName()
+    if "macro" in image_name or "label" in image_name:
+      continue
+    # if any(image_name in prediction_file for prediction_file in os.listdir(PREDICTION_FOLDER)):
+    slides.append({"name": image_name, "id": image_object.getId()})
   return slides
-
-
-def create_all_predictions():
-  predictions = {}
-  predictions["BAP1"] = read_predictions(PRED_PATH_BAP1)
-  predictions["PBRM1"] = read_predictions(PRED_PATH_PBRM1)
-  return predictions
 
 
 def load_slide(path):
@@ -206,8 +185,7 @@ def load_slide(path):
   return encoded_img_data.decode("utf-8")
 
 
-def load_slide_omero(omero, image_id):
-    image = omero.open_image(image_id)
+def load_slide_omero(image):
     thumb_x = image.getSizeX() / 20
     thumb_y = image.getSizeY() / 20
     image_bytes = omero.extract_thumbnail(image, (thumb_x, thumb_y))
@@ -228,3 +206,42 @@ def read_predictions(path):
             row[i] = max(0, row[i])
       predictions.append(row)
   return predictions
+
+
+def get_all_labels():
+  all_labels = []
+  # Obtain all labels for the current slide
+  try:
+    db = get_db()
+    # Obtain all labels in the labels table
+    labels_query = db.execute("SELECT label FROM labels")
+    for label in labels_query.fetchall():
+      all_labels.append(label["label"])
+  except Exception as e:
+    print(e)
+  return all_labels
+
+
+def get_labels(region_name):
+  # Obtain all labels for the current slide
+  labels = {}
+  try:
+    db = get_db()
+    # Obtain all tiles on the current slide which have a label
+    tiles_query = db.execute("""
+      SELECT tiles.coords, labels.label FROM tile_labels 
+      JOIN labels ON labels.id = tile_labels.label_id
+      JOIN tiles ON tiles.id = tile_labels.tile_id
+      JOIN slides ON tiles.slide_id = slides.id
+      WHERE slides.slide_name = ?
+      """, (region_name,))
+    tile_labels = tiles_query.fetchall()
+    for tile in tile_labels:
+      if tile['coords'] in labels:
+        labels[tile['coords']].append(tile['label'])
+      else:
+        labels[tile["coords"]] = [tile["label"]]
+  except Exception as e:
+    print(e)
+
+  return labels
